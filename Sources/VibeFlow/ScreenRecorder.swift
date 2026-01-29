@@ -55,16 +55,11 @@ class ScreenRecorder: NSObject, ObservableObject {
     }
     
     func startRecording() async {
-        print("DEBUG: startRecording() called")
         guard let display = selectedDisplay else {
-            print("DEBUG: No display selected!")
             return
         }
-        print("DEBUG: Selected display: \(display.width)x\(display.height)")
         
         let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent("VibeFlow-\(Date().timeIntervalSince1970).mov")
-        print("Recording to: \(fileURL.path)")
-        print("DEBUG: File URL created: \(fileURL)")
         
         do {
             let assetWriter = try AVAssetWriter(outputURL: fileURL, fileType: .mov)
@@ -74,8 +69,6 @@ class ScreenRecorder: NSObject, ObservableObject {
             let displaySize = CGSize(width: CGFloat(display.width), height: CGFloat(display.height))
             let outputSize = renderConfig.recordingResolution.size(for: displaySize)
             storage.outputSize = outputSize  // Store for use in compositor
-            
-            print("Output Size: \(outputSize)")
             
             let videoSettings: [String: Any] = [
                 AVVideoCodecKey: AVVideoCodecType.h264,
@@ -191,7 +184,6 @@ class ScreenRecorder: NSObject, ObservableObject {
             storage.audioInput?.markAsFinished()
             storage.micInput?.markAsFinished()
             await storage.assetWriter?.finishWriting()
-            print("Finished writing to file")
             
             if let url = storage.assetWriter?.outputURL {
                NSWorkspace.shared.activateFileViewerSelecting([url])

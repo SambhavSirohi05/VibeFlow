@@ -13,7 +13,7 @@ extension ScreenRecorder {
                     self.setupMicrophoneEngine()
                 }
             } else {
-                print("DEBUG: Microphone permission denied")
+                // Permission denied
             }
         }
     }
@@ -31,11 +31,8 @@ extension ScreenRecorder {
             channels: 2,
             interleaved: false
         ) else {
-            print("DEBUG: Failed to create target audio format")
             return
         }
-        
-        print("DEBUG: Starting microphone - Input: \(inputFormat.sampleRate)Hz, Target: 44100Hz")
         
         // Create converter if sample rates don't match
         let converter = AVAudioConverter(from: inputFormat, to: targetFormat)
@@ -71,9 +68,8 @@ extension ScreenRecorder {
         
         do {
             try audioEngine.start()
-            print("DEBUG: Microphone capture started successfully")
         } catch {
-            print("DEBUG: Failed to start microphone: \(error)")
+            // Failed to start microphone
         }
     }
     
@@ -82,7 +78,6 @@ extension ScreenRecorder {
             audioEngine.inputNode.removeTap(onBus: 0)
             audioEngine.stop()
             audioEngine.reset()  // Reset the engine to allow restarting
-            print("DEBUG: Microphone capture stopped and reset")
         }
     }
     

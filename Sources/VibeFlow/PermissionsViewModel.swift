@@ -20,19 +20,14 @@ class PermissionsViewModel: ObservableObject {
     func checkScreenRecordingPermission() {
         // CGPreflightScreenCaptureAccess checks current status
         hasScreenRecordingPermission = CGPreflightScreenCaptureAccess()
-        print("DEBUG: Screen Recording Preflight status: \(hasScreenRecordingPermission)")
         
         // If not granted, try requesting via SCShareableContent to be sure
         if !hasScreenRecordingPermission {
-            print("DEBUG: Preflight failed, attempting deeper check via SCShareableContent...")
-            Task {
                 do {
                     // This will trigger the OS prompt if not already denied
                     _ = try await SCShareableContent.current
                     self.hasScreenRecordingPermission = true
-                    print("DEBUG: SCShareableContent check succeeded - permission granted!")
                 } catch {
-                    print("DEBUG: SCShareableContent check failed: \(error.localizedDescription)")
                     self.hasScreenRecordingPermission = false
                 }
             }
