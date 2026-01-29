@@ -21,7 +21,13 @@
 
 > [!IMPORTANT]
 > **First Time Opening:**
-> Since this app is independently developed, macOS may show a warning. To open it, **Right-click** the app in your Applications folder and select **Open**. You only need to do this once!
+> Since this app is independently developed, macOS may show a "damaged" or "unidentified developer" warning. 
+> 
+> **To fix this:**
+> 1. Open your Terminal.
+> 2. Run this command: `xattr -cr /Applications/VibeFlow.app`
+> 3. **Right-click** VibeFlow in your Applications folder and select **Open**. 
+> You only need to do this once!
 
 ### Method 2: Build from Source
 If you have Swift installed:
