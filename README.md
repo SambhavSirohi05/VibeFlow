@@ -31,9 +31,6 @@ cd VibeFlow
 swift run
 ```
 
-## 🛠 Built During the Vibe Coding Journey
-This project was started on **Day One** of my vibe coding journey as a way to create the perfect videos for the community.
-
 ---
 
 Built with ❤️ by [Sambhav Sirohi](https://github.com/SambhavSirohi05)
