@@ -1,0 +1,14 @@
+.DS_Store
+.build/
+Packages/
+Package.pins
+Package.resolved
+*.xcodeproj
+VibeFlow.app/
+VibeFlow.dmg
+*.mov
+*.mp4
+background.png
+build_dmg.sh
+dmg_root/
+VibeFlow_Visual.dmg
