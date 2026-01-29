@@ -59,7 +59,8 @@ class ScreenRecorder: NSObject, ObservableObject {
             return
         }
         
-        let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent("VibeFlow-\(Date().timeIntervalSince1970).mov")
+        let saveDir = renderConfig.outputDirectory ?? FileManager.default.temporaryDirectory
+        let fileURL = saveDir.appendingPathComponent("VibeFlow-\(Date().timeIntervalSince1970).mov")
         
         do {
             let assetWriter = try AVAssetWriter(outputURL: fileURL, fileType: .mov)

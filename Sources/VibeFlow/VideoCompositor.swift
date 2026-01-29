@@ -170,28 +170,6 @@ class VideoCompositor {
         
         composited = transformedContent.composited(over: composited)
         
-        // 11. Cursor overlay (optional, in screen space - NOT zoomed)
-        if config.showCursorHighlight {
-            let baseTransform = CGAffineTransform(translationX: contentX, y: contentY)
-                .scaledBy(x: baseScale, y: baseScale)
-            
-            let displayLocalX = cursorPosition.x - displayFrame.minX
-            let displayLocalY = displayFrame.height - (cursorPosition.y - displayFrame.minY)
-            let cursorPoint = CGPoint(x: displayLocalX, y: displayLocalY).applying(baseTransform)
-            
-            let cursorHalo = CIFilter(name: "CIRadialGradient", parameters: [
-                "inputCenter": CIVector(x: cursorPoint.x, y: cursorPoint.y),
-                "inputRadius0": 0,
-                "inputRadius1": 20.0,
-                "inputColor0": CIColor(red: 1, green: 1, blue: 0, alpha: 0.6),
-                "inputColor1": CIColor(red: 1, green: 1, blue: 0, alpha: 0.0)
-            ])?.outputImage?.cropped(to: composited.extent)
-            
-            if let halo = cursorHalo {
-                composited = halo.composited(over: composited)
-            }
-        }
-        
         return renderToBuffer(composited, size: canvasSize)
     }
     
@@ -223,8 +201,6 @@ class VideoCompositor {
         // COMMIT: Calculate target transform ONCE and freeze it
         let targetTransform = calculateFocusTransform(focusRect: focusRect, baseScale: baseScale, contentRect: contentRect, screenSize: screenSize)
         
-        print("ZOOM COMMIT: Locking camera at focus rect: \(focusRect)")
-        
         // Start zoom in with FROZEN transform
         zoomState = .zoomingIn(startTime: Date(), targetTransform: targetTransform, wideTransform: wideTransform)
     }
@@ -239,24 +215,19 @@ class VideoCompositor {
         case .zoomingIn(let startTime, let targetTransform, let wideTransform):
             let elapsed = now.timeIntervalSince(startTime)
             if elapsed >= zoomInDuration {
-                // Transition to holding with FROZEN transform
-                print("ZOOM: Entering HOLD state - camera LOCKED")
                 zoomState = .holding(transform: targetTransform, holdStartTime: now, wideTransform: wideTransform)
             }
             
-        case .holding(let transform, let holdStartTime, let wideTransform):
+        case .holding(_, let holdStartTime, let wideTransform):
             let elapsed = now.timeIntervalSince(holdStartTime)
             if elapsed >= holdDuration {
-                // Transition to zooming out with FROZEN transform
-                print("ZOOM: Starting zoom out")
+                guard case .holding(let transform, _, _) = zoomState else { return }
                 zoomState = .zoomingOut(startTime: now, fromTransform: transform, wideTransform: wideTransform)
             }
             
         case .zoomingOut(let startTime, _, _):
             let elapsed = now.timeIntervalSince(startTime)
             if elapsed >= zoomOutDuration {
-                // Return to wide
-                print("ZOOM: Returned to WIDE - ready for new trigger")
                 zoomState = .wide
             }
         }

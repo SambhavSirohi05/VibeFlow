@@ -10,6 +10,7 @@
 - **Live Canvas Preview**: Adjust padding, corner radius, and shadows in real-time.
 - **Dynamic Backgrounds**: Switch between Solid Colors, Linear Gradients, or any custom Image background.
 - **Synchronized Audio Engine**: High-fidelity microphone recording mixed perfectly with system audio.
+- **Custom Save Directory**: Choose exactly where your recordings are saved.
 - **Pro Performance**: Launchable from Spotlight and optimized for macOS 13+.
 
 ## 🚀 Installation & Usage

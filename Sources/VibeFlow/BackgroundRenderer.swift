@@ -70,6 +70,7 @@ struct RendererConfiguration {
     var padding: CGFloat = 50
     var preset: ExportPreset = .original
     var recordingResolution: RecordingResolution = .native
+    var outputDirectory: URL? = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
     
     // Cursor zoom settings
     var enableCursorZoom: Bool = true // Re-enabled for testing camera commitment fix
@@ -77,7 +78,6 @@ struct RendererConfiguration {
     var triggerKey: Int = 6 // Default to 'Z' (0x06)
     var zoomStrength: CGFloat = 1.5  // 1.0 = no zoom, 2.0 = 2x zoom
     var zoomIdleDelay: TimeInterval = 0.5  // Seconds before zoom triggers
-    var showCursorHighlight: Bool = false  // Disable yellow halo
     
     // Audio settings
     var enableMicrophone: Bool = true  // Record microphone audio
@@ -99,7 +99,6 @@ struct RendererConfiguration {
         triggerKey: 6,
         zoomStrength: 1.5,
         zoomIdleDelay: 0.5,
-        showCursorHighlight: false,
         enableMicrophone: true,
         solidColor: .blue,
         gradientColors: [Color(red: 0.2, green: 0.2, blue: 0.6), Color(red: 0.6, green: 0.2, blue: 0.4)]
@@ -246,10 +245,31 @@ struct BackgroundRenderer: View {
                 }
             }
             
-            GroupBox(label: Text("Recording")) {
+            GroupBox(label: Text("Resolution")) {
                 Picker("Resolution", selection: $config.recordingResolution) {
                     ForEach(RecordingResolution.allCases) { resolution in
                         Text(resolution.rawValue).tag(resolution)
+                    }
+                }
+            }
+            
+            GroupBox(label: Text("Storage")) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Save Recordings to:")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    
+                    HStack {
+                        Text(config.outputDirectory?.path ?? "Temporary Folder")
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .font(.system(.body, design: .monospaced))
+                        
+                        Spacer()
+                        
+                        Button("Change...") {
+                            selectOutputDirectory()
+                        }
                     }
                 }
             }
@@ -334,7 +354,6 @@ struct BackgroundRenderer: View {
         .frame(width: 300)
     }
     
-    // ... (rest of the file)
     private func selectImageFile() {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
@@ -345,6 +364,19 @@ struct BackgroundRenderer: View {
         
         if panel.runModal() == .OK, let url = panel.url {
             config.background = .image(url)
+        }
+    }
+    
+    private func selectOutputDirectory() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.message = "Where should VibeFlow save your recordings?"
+        panel.prompt = "Select Folder"
+        
+        if panel.runModal() == .OK {
+            config.outputDirectory = panel.url
         }
     }
 }
