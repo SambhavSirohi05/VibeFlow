@@ -24,6 +24,7 @@ class ScreenRecorder: NSObject, ObservableObject {
         var micInput: AVAssetWriterInput?    // Microphone audio
         var pixelBufferAdaptor: AVAssetWriterInputPixelBufferAdaptor?
         var sessionStarted = false
+        let sessionLock = NSLock()
         var firstSampleTime: CMTime = .zero
         var outputSize: CGSize?  // Store the output resolution
     }
@@ -132,7 +133,9 @@ class ScreenRecorder: NSObject, ObservableObject {
             }
             
             assetWriter.startWriting()
+            storage.sessionLock.lock()
             storage.sessionStarted = false
+            storage.sessionLock.unlock()
             
         } catch {
             self.error = error
@@ -224,9 +227,13 @@ extension ScreenRecorder: SCStreamOutput {
         // Audio Handling
         if type == .audio {
             // Safe access via storage class
+            storage.sessionLock.lock()
+            let isStarted = storage.sessionStarted
+            storage.sessionLock.unlock()
+            
             if let audioInput = storage.audioInput, 
                audioInput.isReadyForMoreMediaData,
-               storage.sessionStarted {  // Wait for session to start!
+               isStarted {  // Wait for session to start!
                 if audioInput.append(sampleBuffer) {
                     // success
                 }
@@ -249,11 +256,13 @@ extension ScreenRecorder: SCStreamOutput {
         
         let currentTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
         
+        storage.sessionLock.lock()
         if !storage.sessionStarted {
-            storage.sessionStarted = true
             storage.firstSampleTime = currentTime
             storage.assetWriter?.startSession(atSourceTime: storage.firstSampleTime)
+            storage.sessionStarted = true // Set AFTER starting session
         }
+        storage.sessionLock.unlock()
         
         // Sync Config
         compositor.config = renderConfig

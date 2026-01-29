@@ -1,0 +1,66 @@
+client:
+  name: basic
+  file-system: device-agnostic
+tools: {}
+targets:
+  "PackageStructure": ["<PackageStructure>"]
+  "VibeFlow-arm64-apple-macosx26.0-release.exe": ["<VibeFlow-arm64-apple-macosx26.0-release.exe>"]
+  "VibeFlow-arm64-apple-macosx26.0-release.module": ["<VibeFlow-arm64-apple-macosx26.0-release.module>"]
+  "main": ["<VibeFlow-arm64-apple-macosx26.0-release.exe>","<VibeFlow-arm64-apple-macosx26.0-release.module>"]
+  "test": ["<VibeFlow-arm64-apple-macosx26.0-release.exe>","<VibeFlow-arm64-apple-macosx26.0-release.module>"]
+default: "main"
+nodes:
+  "/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+commands:
+  "/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/BackgroundRenderer.swift","/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/ContentView.swift","/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/CursorManager.swift","/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/CursorTracker.swift","/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/PermissionsViewModel.swift","/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/ScreenRecorder.swift","/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/ScreenRecorder_MicExtension.swift","/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/VibeFlowApp.swift","/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/VideoCompositor.swift"]
+    outputs: ["/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/sources"]
+    description: "Write auxiliary file /Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/sources"
+
+  "/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.product/Objects.LinkFileList":
+    tool: write-auxiliary-file
+    inputs: ["<link-file-list>","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/BackgroundRenderer.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/ContentView.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/CursorManager.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/CursorTracker.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/PermissionsViewModel.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/ScreenRecorder.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/ScreenRecorder_MicExtension.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/VibeFlowApp.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/VideoCompositor.swift.o"]
+    outputs: ["/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.product/Objects.LinkFileList"]
+    description: "Write auxiliary file /Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.product/Objects.LinkFileList"
+
+  "/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt":
+    tool: write-auxiliary-file
+    inputs: ["<swift-get-version>","/Library/Developer/CommandLineTools/usr/bin/swiftc"]
+    outputs: ["/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt"]
+    always-out-of-date: "true"
+    description: "Write auxiliary file /Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt"
+
+  "<VibeFlow-arm64-apple-macosx26.0-release.exe>":
+    tool: phony
+    inputs: ["/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow"]
+    outputs: ["<VibeFlow-arm64-apple-macosx26.0-release.exe>"]
+
+  "<VibeFlow-arm64-apple-macosx26.0-release.module>":
+    tool: phony
+    inputs: ["/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/BackgroundRenderer.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/ContentView.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/CursorManager.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/CursorTracker.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/PermissionsViewModel.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/ScreenRecorder.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/ScreenRecorder_MicExtension.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/VibeFlowApp.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/VideoCompositor.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/Modules/VibeFlow.swiftmodule"]
+    outputs: ["<VibeFlow-arm64-apple-macosx26.0-release.module>"]
+
+  "C.VibeFlow-arm64-apple-macosx26.0-release.exe":
+    tool: shell
+    inputs: ["/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/BackgroundRenderer.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/ContentView.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/CursorManager.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/CursorTracker.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/PermissionsViewModel.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/ScreenRecorder.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/ScreenRecorder_MicExtension.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/VibeFlowApp.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/VideoCompositor.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.product/Objects.LinkFileList"]
+    outputs: ["/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow"]
+    description: "Linking ./.build/arm64-apple-macosx/release/VibeFlow"
+    args: ["/Library/Developer/CommandLineTools/usr/bin/swiftc","-L","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release","-o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow","-module-name","VibeFlow","-Xlinker","-no_warn_duplicate_libraries","-emit-executable","-Xlinker","-dead_strip","-Xlinker","-alias","-Xlinker","_VibeFlow_main","-Xlinker","_main","-Xlinker","-rpath","-Xlinker","@loader_path","@/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.product/Objects.LinkFileList","-Xlinker","-rpath","-Xlinker","/Library/Developer/CommandLineTools/usr/lib/swift-6.2/macosx","-target","arm64-apple-macosx13.0","-I","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-L","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-plugin-path","/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing","-sdk","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-g"]
+
+  "C.VibeFlow-arm64-apple-macosx26.0-release.module":
+    tool: shell
+    inputs: ["/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/BackgroundRenderer.swift","/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/ContentView.swift","/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/CursorManager.swift","/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/CursorTracker.swift","/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/PermissionsViewModel.swift","/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/ScreenRecorder.swift","/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/ScreenRecorder_MicExtension.swift","/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/VibeFlowApp.swift","/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/VideoCompositor.swift","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/swift-version--1AB21518FC5DEDBE.txt","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/sources"]
+    outputs: ["/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/BackgroundRenderer.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/ContentView.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/CursorManager.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/CursorTracker.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/PermissionsViewModel.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/ScreenRecorder.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/ScreenRecorder_MicExtension.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/VibeFlowApp.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/VideoCompositor.swift.o","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/Modules/VibeFlow.swiftmodule"]
+    description: "Compiling Swift Module 'VibeFlow' (9 sources)"
+    args: ["/Library/Developer/CommandLineTools/usr/bin/swiftc","-module-name","VibeFlow","-emit-dependencies","-emit-module","-emit-module-path","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/Modules/VibeFlow.swiftmodule","-output-file-map","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/output-file-map.json","-whole-module-optimization","-num-threads","10","-c","@/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/VibeFlow.build/sources","-I","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/Modules","-target","arm64-apple-macosx13.0","-whole-module-optimization","-num-threads","10","-serialize-diagnostics","-O","-j10","-DSWIFT_PACKAGE","-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE","-module-cache-path","/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/release/ModuleCache","-parseable-output","-Xfrontend","-entry-point-function-name","-Xfrontend","VibeFlow_main","-swift-version","5","-I","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-L","/Library/Developer/CommandLineTools/Library/Developer/Frameworks","-plugin-path","/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing","-sdk","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-g","-Xcc","-isysroot","-Xcc","/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk","-Xcc","-fPIC","-Xcc","-g","-package-name","vibeflow"]
+
+  "PackageStructure":
+    tool: package-structure-tool
+    inputs: ["/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/","/Users/sambhavsirohi/Developer/VibeFlow/Package.swift","/Users/sambhavsirohi/Developer/VibeFlow/Package.resolved"]
+    outputs: ["<PackageStructure>"]
+    description: "Planning build"
+    allow-missing-inputs: true
+

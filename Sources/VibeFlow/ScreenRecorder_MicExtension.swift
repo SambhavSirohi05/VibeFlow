@@ -41,11 +41,16 @@ extension ScreenRecorder {
         let converter = AVAudioConverter(from: inputFormat, to: targetFormat)
         
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { [weak self] (buffer, time) in
-            guard let self = self,
-                  let micInput = self.storage.micInput,
+            guard let self = self else { return }
+            
+            self.storage.sessionLock.lock()
+            let isStarted = self.storage.sessionStarted
+            self.storage.sessionLock.unlock()
+            
+            guard let micInput = self.storage.micInput,
                   micInput.isReadyForMoreMediaData,
                   let converter = converter,
-                  self.storage.sessionStarted else { return }  // Wait for session to start!
+                  isStarted else { return }  // Wait for session to start!
             
             // Convert to target format
             let frameCapacity = AVAudioFrameCount(Double(buffer.frameLength) * (44100.0 / inputFormat.sampleRate))
