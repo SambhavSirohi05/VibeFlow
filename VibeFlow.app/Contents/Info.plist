@@ -30,5 +30,7 @@
     <string>VibeFlow needs accessibility permissions to detect global keyboard shortcuts for the zoom trigger.</string>
     <key>NSInputMonitoringUsageDescription</key>
     <string>VibeFlow needs input monitoring permissions to detect global keyboard shortcuts for the zoom trigger.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>VibeFlow needs microphone access to record your voice during screen recordings.</string>
 </dict>
 </plist>

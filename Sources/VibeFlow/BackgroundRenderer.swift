@@ -79,6 +79,9 @@ struct RendererConfiguration {
     var zoomIdleDelay: TimeInterval = 0.5  // Seconds before zoom triggers
     var showCursorHighlight: Bool = false  // Disable yellow halo
     
+    // Audio settings
+    var enableMicrophone: Bool = true  // Record microphone audio
+    
     // For convenience in UI
     var solidColor: Color = .blue
     var gradientColors: [Color] = [Color(red: 0.2, green: 0.2, blue: 0.6), Color(red: 0.6, green: 0.2, blue: 0.4)]
@@ -97,6 +100,7 @@ struct RendererConfiguration {
         zoomStrength: 1.5,
         zoomIdleDelay: 0.5,
         showCursorHighlight: false,
+        enableMicrophone: true,
         solidColor: .blue,
         gradientColors: [Color(red: 0.2, green: 0.2, blue: 0.6), Color(red: 0.6, green: 0.2, blue: 0.4)]
     )
@@ -306,6 +310,11 @@ struct BackgroundRenderer: View {
                             .frame(width: 40)
                     }
                 }
+            }
+            
+            GroupBox(label: Text("Audio")) {
+                Toggle("Record Microphone", isOn: $config.enableMicrophone)
+                    .help("Capture your voice during screen recording")
             }
             
             // Reset Button

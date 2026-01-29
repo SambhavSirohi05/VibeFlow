@@ -17,16 +17,21 @@ class ScreenRecorder: NSObject, ObservableObject {
     private var stream: SCStream?
     
     // Storage for non-isolated access (AVAssetWriter is thread-safe for appending)
-    private class Storage {
+    class Storage {
         var assetWriter: AVAssetWriter?
         var videoInput: AVAssetWriterInput?
-        var audioInput: AVAssetWriterInput?
+        var audioInput: AVAssetWriterInput?  // System audio
+        var micInput: AVAssetWriterInput?    // Microphone audio
         var pixelBufferAdaptor: AVAssetWriterInputPixelBufferAdaptor?
         var sessionStarted = false
         var firstSampleTime: CMTime = .zero
         var outputSize: CGSize?  // Store the output resolution
     }
-    nonisolated private let storage = Storage()
+    nonisolated let storage = Storage()
+    
+    // Microphone audio engine
+    let audioEngine = AVAudioEngine()
+    var micAudioQueue: DispatchQueue?
     
     // Components
     private let cursorManager = CursorManager()
@@ -49,10 +54,16 @@ class ScreenRecorder: NSObject, ObservableObject {
     }
     
     func startRecording() async {
-        guard let display = selectedDisplay else { return }
+        print("DEBUG: startRecording() called")
+        guard let display = selectedDisplay else {
+            print("DEBUG: No display selected!")
+            return
+        }
+        print("DEBUG: Selected display: \(display.width)x\(display.height)")
         
         let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent("VibeFlow-\(Date().timeIntervalSince1970).mov")
         print("Recording to: \(fileURL.path)")
+        print("DEBUG: File URL created: \(fileURL)")
         
         do {
             let assetWriter = try AVAssetWriter(outputURL: fileURL, fileType: .mov)
@@ -106,6 +117,20 @@ class ScreenRecorder: NSObject, ObservableObject {
                 assetWriter.add(audioInput)
             }
             
+            // Microphone Input
+            let micInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
+            micInput.expectsMediaDataInRealTime = true
+            storage.micInput = micInput
+            
+            if assetWriter.canAdd(micInput) {
+                assetWriter.add(micInput)
+            }
+            
+            // Start microphone capture (if enabled)
+            if renderConfig.enableMicrophone {
+                startMicrophoneCapture()
+            }
+            
             assetWriter.startWriting()
             storage.sessionStarted = false
             
@@ -156,8 +181,12 @@ class ScreenRecorder: NSObject, ObservableObject {
             stream = nil
             isRecording = false
             
+            // Stop microphone
+            stopMicrophoneCapture()
+            
             storage.videoInput?.markAsFinished()
             storage.audioInput?.markAsFinished()
+            storage.micInput?.markAsFinished()
             await storage.assetWriter?.finishWriting()
             print("Finished writing to file")
             
@@ -168,6 +197,7 @@ class ScreenRecorder: NSObject, ObservableObject {
             storage.assetWriter = nil
             storage.videoInput = nil
             storage.audioInput = nil
+            storage.micInput = nil
             storage.pixelBufferAdaptor = nil
             error = nil
         } catch {
@@ -194,7 +224,9 @@ extension ScreenRecorder: SCStreamOutput {
         // Audio Handling
         if type == .audio {
             // Safe access via storage class
-            if let audioInput = storage.audioInput, audioInput.isReadyForMoreMediaData {
+            if let audioInput = storage.audioInput, 
+               audioInput.isReadyForMoreMediaData,
+               storage.sessionStarted {  // Wait for session to start!
                 if audioInput.append(sampleBuffer) {
                     // success
                 }

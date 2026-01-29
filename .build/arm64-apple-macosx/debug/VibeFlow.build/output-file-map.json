@@ -44,6 +44,13 @@
     "swift-dependencies": "/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/debug/VibeFlow.build/ScreenRecorder.swiftdeps",
     "diagnostics": "/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/debug/VibeFlow.build/ScreenRecorder.dia"
   },
+  "/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/ScreenRecorder_MicExtension.swift": {
+    "dependencies": "/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/debug/VibeFlow.build/ScreenRecorder_MicExtension.d",
+    "object": "/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/debug/VibeFlow.build/ScreenRecorder_MicExtension.swift.o",
+    "swiftmodule": "/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/debug/VibeFlow.build/ScreenRecorder_MicExtension~partial.swiftmodule",
+    "swift-dependencies": "/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/debug/VibeFlow.build/ScreenRecorder_MicExtension.swiftdeps",
+    "diagnostics": "/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/debug/VibeFlow.build/ScreenRecorder_MicExtension.dia"
+  },
   "/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/VibeFlowApp.swift": {
     "dependencies": "/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/debug/VibeFlow.build/VibeFlowApp.d",
     "object": "/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/debug/VibeFlow.build/VibeFlowApp.swift.o",

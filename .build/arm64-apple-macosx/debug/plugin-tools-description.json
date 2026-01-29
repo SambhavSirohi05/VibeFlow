@@ -48,6 +48,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/ScreenRecorder_MicExtension.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/VibeFlowApp.swift"
         },
         {
@@ -73,6 +77,7 @@
         "/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/debug/VibeFlow.build/CursorTracker.swift.o",
         "/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/debug/VibeFlow.build/PermissionsViewModel.swift.o",
         "/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/debug/VibeFlow.build/ScreenRecorder.swift.o",
+        "/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/debug/VibeFlow.build/ScreenRecorder_MicExtension.swift.o",
         "/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/debug/VibeFlow.build/VibeFlowApp.swift.o",
         "/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/debug/VibeFlow.build/VideoCompositor.swift.o"
       ],
@@ -97,7 +102,6 @@
         "-entry-point-function-name",
         "-Xfrontend",
         "VibeFlow_main",
-        "-color-diagnostics",
         "-swift-version",
         "5",
         "-I",
@@ -148,6 +152,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/debug/VibeFlow.build/ScreenRecorder_MicExtension.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/debug/VibeFlow.build/VibeFlowApp.swift.o"
         },
         {
@@ -167,6 +175,7 @@
         "/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/CursorTracker.swift",
         "/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/PermissionsViewModel.swift",
         "/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/ScreenRecorder.swift",
+        "/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/ScreenRecorder_MicExtension.swift",
         "/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/VibeFlowApp.swift",
         "/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/VideoCompositor.swift"
       ],
@@ -191,6 +200,7 @@
       "/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/CursorTracker.swift",
       "/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/PermissionsViewModel.swift",
       "/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/ScreenRecorder.swift",
+      "/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/ScreenRecorder_MicExtension.swift",
       "/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/VibeFlowApp.swift",
       "/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/VideoCompositor.swift",
       "-I",
@@ -215,7 +225,6 @@
       "-entry-point-function-name",
       "-Xfrontend",
       "VibeFlow_main",
-      "-color-diagnostics",
       "-swift-version",
       "5",
       "-I",
@@ -305,6 +314,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/ScreenRecorder_MicExtension.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/sambhavsirohi/Developer/VibeFlow/Sources/VibeFlow/VibeFlowApp.swift"
         },
         {
@@ -344,6 +357,10 @@
         {
           "kind" : "file",
           "name" : "/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/debug/VibeFlow.build/ScreenRecorder.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/sambhavsirohi/Developer/VibeFlow/.build/arm64-apple-macosx/debug/VibeFlow.build/ScreenRecorder_MicExtension.swift.o"
         },
         {
           "kind" : "file",
