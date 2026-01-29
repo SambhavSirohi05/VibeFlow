@@ -196,8 +196,12 @@ class VideoCompositor {
     }
     
     private func handleFocusZoomTrigger(_ trigger: CursorManager.FocusZoomTrigger, screenSize: CGSize, displayFrame: CGRect, baseScale: CGFloat, contentRect: CGRect, wideTransform: CGAffineTransform) {
-        // Only trigger if we're in wide state
-        guard case .wide = zoomState else { return }
+        // CRITICAL: Only trigger if we're in wide state
+        // This prevents re-triggering and camera drift during active zoom
+        guard case .wide = zoomState else { 
+            // Already zooming/holding/zooming out - ignore new triggers
+            return 
+        }
         
         // Convert cursor position to screen-local coordinates
         let localX = trigger.position.x - displayFrame.minX
@@ -219,6 +223,8 @@ class VideoCompositor {
         // COMMIT: Calculate target transform ONCE and freeze it
         let targetTransform = calculateFocusTransform(focusRect: focusRect, baseScale: baseScale, contentRect: contentRect, screenSize: screenSize)
         
+        print("ZOOM COMMIT: Locking camera at focus rect: \(focusRect)")
+        
         // Start zoom in with FROZEN transform
         zoomState = .zoomingIn(startTime: Date(), targetTransform: targetTransform, wideTransform: wideTransform)
     }
@@ -234,6 +240,7 @@ class VideoCompositor {
             let elapsed = now.timeIntervalSince(startTime)
             if elapsed >= zoomInDuration {
                 // Transition to holding with FROZEN transform
+                print("ZOOM: Entering HOLD state - camera LOCKED")
                 zoomState = .holding(transform: targetTransform, holdStartTime: now, wideTransform: wideTransform)
             }
             
@@ -241,6 +248,7 @@ class VideoCompositor {
             let elapsed = now.timeIntervalSince(holdStartTime)
             if elapsed >= holdDuration {
                 // Transition to zooming out with FROZEN transform
+                print("ZOOM: Starting zoom out")
                 zoomState = .zoomingOut(startTime: now, fromTransform: transform, wideTransform: wideTransform)
             }
             
@@ -248,6 +256,7 @@ class VideoCompositor {
             let elapsed = now.timeIntervalSince(startTime)
             if elapsed >= zoomOutDuration {
                 // Return to wide
+                print("ZOOM: Returned to WIDE - ready for new trigger")
                 zoomState = .wide
             }
         }

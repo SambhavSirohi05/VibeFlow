@@ -72,7 +72,7 @@ struct RendererConfiguration {
     var recordingResolution: RecordingResolution = .native
     
     // Cursor zoom settings
-    var enableCursorZoom: Bool = false // Disabled by default as per user request
+    var enableCursorZoom: Bool = true // Re-enabled for testing camera commitment fix
     var zoomTriggerMode: ZoomTriggerMode = .auto
     var triggerKey: Int = 6 // Default to 'Z' (0x06)
     var zoomStrength: CGFloat = 1.5  // 1.0 = no zoom, 2.0 = 2x zoom
@@ -82,8 +82,89 @@ struct RendererConfiguration {
     // For convenience in UI
     var solidColor: Color = .blue
     var gradientColors: [Color] = [Color(red: 0.2, green: 0.2, blue: 0.6), Color(red: 0.6, green: 0.2, blue: 0.4)]
+    
+    // Recommended defaults
+    static let recommendedDefaults = RendererConfiguration(
+        background: .gradient([Color(red: 0.2, green: 0.2, blue: 0.6), Color(red: 0.6, green: 0.2, blue: 0.4)]),
+        cornerRadius: 16,
+        shadowRadius: 10,
+        padding: 50,
+        preset: .original,
+        recordingResolution: .native,
+        enableCursorZoom: true,
+        zoomTriggerMode: .auto,
+        triggerKey: 6,
+        zoomStrength: 1.5,
+        zoomIdleDelay: 0.5,
+        showCursorHighlight: false,
+        solidColor: .blue,
+        gradientColors: [Color(red: 0.2, green: 0.2, blue: 0.6), Color(red: 0.6, green: 0.2, blue: 0.4)]
+    )
+    
+    mutating func resetToDefaults() {
+        self = RendererConfiguration.recommendedDefaults
+    }
 }
 
+
+
+// MARK: - Layout Preview Component
+
+struct LayoutPreview: View {
+    let config: RendererConfiguration
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                // Background
+                backgroundView
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                
+                // Content rectangle with padding, corners, and shadow
+                RoundedRectangle(cornerRadius: config.cornerRadius / 4) // Scale down for preview
+                    .fill(Color.white.opacity(0.3))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: config.cornerRadius / 4)
+                            .stroke(Color.white.opacity(0.5), lineWidth: 1)
+                    )
+                    .shadow(color: Color.black.opacity(0.3), radius: config.shadowRadius / 4, x: 0, y: 2)
+                    .padding(config.padding / 4) // Scale down padding for preview
+            }
+        }
+        .frame(height: 120)
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+        )
+    }
+    
+    @ViewBuilder
+    private var backgroundView: some View {
+        switch config.background {
+        case .solid(let color):
+            color
+        case .gradient(let colors):
+            if colors.count >= 2 {
+                LinearGradient(
+                    colors: colors,
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            } else {
+                Color.blue
+            }
+        case .image(let url):
+            if let nsImage = NSImage(contentsOf: url) {
+                Image(nsImage: nsImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else {
+                Color.gray
+            }
+        }
+    }
+}
 
 // MARK: - BackgroundRenderer View
 
@@ -92,6 +173,12 @@ struct BackgroundRenderer: View {
     
     var body: some View {
         VStack(spacing: 20) {
+            // Live Preview
+            GroupBox(label: Text("Preview")) {
+                LayoutPreview(config: config)
+                    .padding(.vertical, 8)
+            }
+            
             GroupBox(label: Text("Background")) {
                 Picker("Type", selection: Binding(
                     get: {
@@ -186,7 +273,6 @@ struct BackgroundRenderer: View {
                 }
             }
             
-            /*
             GroupBox(label: Text("Cursor Zoom")) {
                 Toggle("Enable Zoom", isOn: $config.enableCursorZoom)
                 
@@ -221,7 +307,19 @@ struct BackgroundRenderer: View {
                     }
                 }
             }
-            */
+            
+            // Reset Button
+            Button(action: {
+                config.resetToDefaults()
+            }) {
+                HStack {
+                    Image(systemName: "arrow.counterclockwise")
+                    Text("Reset to Recommended")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
         }
         .padding()
         .frame(width: 300)
