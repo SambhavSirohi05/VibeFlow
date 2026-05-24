@@ -12,7 +12,10 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "VibeFlow",
-            path: "Sources/VibeFlow"
+            path: "Sources/VibeFlow",
+            resources: [
+                .process("Resources")
+            ]
         )
     ]
 )
