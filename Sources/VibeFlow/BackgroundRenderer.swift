@@ -45,9 +45,11 @@ enum RecordingResolution: String, CaseIterable, Identifiable {
     }
 }
 
-enum ZoomTriggerMode: String, CaseIterable, Identifiable {
-    case auto = "Auto"
-    case manual = "Manual Key"
+enum AudioCaptureMode: String, CaseIterable, Identifiable {
+    case screenOnly = "Screen Only"
+    case micOnly = "Mic Only"
+    case both = "Both"
+    case none = "None"
     
     var id: String { rawValue }
 }
@@ -62,13 +64,11 @@ struct RendererConfiguration {
     
     // Cursor zoom settings
     var enableCursorZoom: Bool = true // Re-enabled for testing camera commitment fix
-    var zoomTriggerMode: ZoomTriggerMode = .auto
-    var triggerKey: Int = 6 // Default to 'Z' (0x06)
     var zoomStrength: CGFloat = 1.5  // 1.0 = no zoom, 2.0 = 2x zoom
     var zoomIdleDelay: TimeInterval = 0.5  // Seconds before zoom triggers
     
     // Audio settings
-    var enableMicrophone: Bool = true  // Record microphone audio
+    var audioMode: AudioCaptureMode = .both
     
     // For convenience in UI
     var solidColor: Color = .blue
@@ -82,11 +82,9 @@ struct RendererConfiguration {
         padding: 50,
         recordingResolution: .native,
         enableCursorZoom: true,
-        zoomTriggerMode: .auto,
-        triggerKey: 6,
         zoomStrength: 1.5,
         zoomIdleDelay: 0.5,
-        enableMicrophone: true,
+        audioMode: .both,
         solidColor: .blue,
         gradientColors: [Color(red: 0.2, green: 0.2, blue: 0.6), Color(red: 0.6, green: 0.2, blue: 0.4)]
     )
@@ -282,33 +280,21 @@ struct BackgroundRenderer: View {
                 Toggle("Enable Zoom", isOn: $config.enableCursorZoom)
                 
                 if config.enableCursorZoom {
-                    Picker("Trigger Mode", selection: $config.zoomTriggerMode) {
-                        ForEach(ZoomTriggerMode.allCases) { mode in
-                            Text(mode.rawValue).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    
-                    if config.zoomTriggerMode == .manual {
-                        HStack {
-                            Text("Trigger Key")
-                            Spacer()
-                            KeyRecorder(keyCode: $config.triggerKey)
-                        }
-                    } else {
-                        HStack {
-                            Text("Idle Delay")
-                            Slider(value: $config.zoomIdleDelay, in: 0.1...2.0, step: 0.1)
-                            Text(String(format: "%.1fs", config.zoomIdleDelay))
-                                .frame(width: 40)
-                        }
+                    HStack {
+                        Text("Idle Delay")
+                        Slider(value: $config.zoomIdleDelay, in: 0.1...2.0, step: 0.1)
+                        Text(String(format: "%.1fs", config.zoomIdleDelay))
+                            .frame(width: 40)
                     }
                 }
             }
             
             GroupBox(label: Text("Audio")) {
-                Toggle("Record Microphone", isOn: $config.enableMicrophone)
-                    .help("Capture your voice during screen recording")
+                Picker("Audio Source", selection: $config.audioMode) {
+                    ForEach(AudioCaptureMode.allCases) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
             }
             
             // Reset Button
@@ -351,58 +337,6 @@ struct BackgroundRenderer: View {
         
         if panel.runModal() == .OK {
             config.outputDirectory = panel.url
-        }
-    }
-}
-
-struct KeyRecorder: View {
-    @Binding var keyCode: Int
-    @State private var isRecording = false
-    @State private var eventMonitor: Any?
-    
-    var body: some View {
-        Button(action: {
-            isRecording.toggle()
-            if isRecording {
-                startRecording()
-            } else {
-                stopRecording()
-            }
-        }) {
-            Text(isRecording ? "Press any key..." : (keyName(for: keyCode) ?? "Key \(keyCode)"))
-                .frame(minWidth: 80)
-        }
-        .buttonStyle(.bordered)
-        .tint(isRecording ? .red : .primary)
-    }
-    
-    private func startRecording() {
-        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            keyCode = Int(event.keyCode)
-            stopRecording()
-            return nil
-        }
-    }
-    
-    private func stopRecording() {
-        if let monitor = eventMonitor {
-            NSEvent.removeMonitor(monitor)
-            eventMonitor = nil
-        }
-        isRecording = false
-    }
-    
-    private func keyName(for code: Int) -> String? {
-        // Simple mapping for common keys
-        switch code {
-        case 53: return "Esc"
-        case 49: return "Space"
-        case 36: return "Return"
-        case 48: return "Tab"
-        default:
-            // Try to convert to character
-            // This is a naive implementation, but sufficient for now
-            return "Code: \(code)"
         }
     }
 }

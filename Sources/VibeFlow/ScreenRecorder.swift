@@ -104,32 +104,43 @@ class ScreenRecorder: NSObject, ObservableObject {
                 assetWriter.add(videoInput)
             }
             
-            // Audio Input (System Audio)
             let audioSettings: [String: Any] = [
                 AVFormatIDKey: kAudioFormatMPEG4AAC,
                 AVNumberOfChannelsKey: 2,
                 AVSampleRateKey: 44100,
                 AVEncoderBitRateKey: 128000
             ]
-            let audioInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
-            audioInput.expectsMediaDataInRealTime = true
-            storage.audioInput = audioInput
+            let capturesSystemAudio = (renderConfig.audioMode == .screenOnly || renderConfig.audioMode == .both)
+            let capturesMic = (renderConfig.audioMode == .micOnly || renderConfig.audioMode == .both)
             
-            if assetWriter.canAdd(audioInput) {
-                assetWriter.add(audioInput)
+            // Audio Input (System Audio)
+            if capturesSystemAudio {
+                let audioInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
+                audioInput.expectsMediaDataInRealTime = true
+                storage.audioInput = audioInput
+                
+                if assetWriter.canAdd(audioInput) {
+                    assetWriter.add(audioInput)
+                }
+            } else {
+                storage.audioInput = nil
             }
             
             // Microphone Input
-            let micInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
-            micInput.expectsMediaDataInRealTime = true
-            storage.micInput = micInput
-            
-            if assetWriter.canAdd(micInput) {
-                assetWriter.add(micInput)
+            if capturesMic {
+                let micInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
+                micInput.expectsMediaDataInRealTime = true
+                storage.micInput = micInput
+                
+                if assetWriter.canAdd(micInput) {
+                    assetWriter.add(micInput)
+                }
+            } else {
+                storage.micInput = nil
             }
             
             // Start microphone capture (if enabled)
-            if renderConfig.enableMicrophone {
+            if capturesMic {
                 startMicrophoneCapture()
             }
             
@@ -155,10 +166,13 @@ class ScreenRecorder: NSObject, ObservableObject {
         config.minimumFrameInterval = CMTime(value: 1, timescale: 60)
         config.queueDepth = 5
         
-        // Enable Audio Capture
-        config.capturesAudio = true
-        config.sampleRate = 44100
-        config.channelCount = 2
+        // Enable Audio Capture based on audioMode
+        let capturesSystemAudio = (renderConfig.audioMode == .screenOnly || renderConfig.audioMode == .both)
+        config.capturesAudio = capturesSystemAudio
+        if capturesSystemAudio {
+            config.sampleRate = 44100
+            config.channelCount = 2
+        }
         
         do {
             let stream = SCStream(filter: filter, configuration: config, delegate: self)
@@ -167,7 +181,9 @@ class ScreenRecorder: NSObject, ObservableObject {
             try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: DispatchQueue(label: "com.vibeflow.recorder.video"))
             
             // Add Audio Output
-            try stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: DispatchQueue(label: "com.vibeflow.recorder.audio"))
+            if capturesSystemAudio {
+                try stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: DispatchQueue(label: "com.vibeflow.recorder.audio"))
+            }
             
             try await stream.startCapture()
             self.stream = stream
@@ -268,8 +284,6 @@ extension ScreenRecorder: SCStreamOutput {
         compositor.config = renderConfig
         
         // Sync CursorManager config
-        cursorManager.zoomTriggerMode = renderConfig.zoomTriggerMode
-        cursorManager.triggerKey = renderConfig.triggerKey
         cursorManager.zoomIdleDelay = renderConfig.zoomIdleDelay
         
         let displayWidth = CVPixelBufferGetWidth(pixelBuffer)

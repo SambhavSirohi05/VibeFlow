@@ -134,6 +134,14 @@ struct RecorderView: View {
                         }
                         .pickerStyle(.menu)
                         .frame(width: 200)
+                        
+                        Picker("Audio Source", selection: $recorder.renderConfig.audioMode) {
+                            ForEach(AudioCaptureMode.allCases) { mode in
+                                Text(mode.rawValue).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: 200)
                     }
                     
                     Button("Layout Settings") {
