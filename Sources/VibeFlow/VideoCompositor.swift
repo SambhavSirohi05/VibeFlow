@@ -13,8 +13,8 @@ class VideoCompositor {
     // Focus zoom state - CAMERA COMMITMENT MODEL
     private enum ZoomState {
         case wide
-        case zoomingIn(startTime: Date, targetTransform: CGAffineTransform, wideTransform: CGAffineTransform)
-        case holding(transform: CGAffineTransform, holdStartTime: Date, wideTransform: CGAffineTransform)
+        case zoomingIn(startTime: Date, targetTransform: CGAffineTransform, wideTransform: CGAffineTransform, triggerPosition: CGPoint)
+        case holding(transform: CGAffineTransform, holdStartTime: Date, wideTransform: CGAffineTransform, triggerPosition: CGPoint)
         case zoomingOut(startTime: Date, fromTransform: CGAffineTransform, wideTransform: CGAffineTransform)
     }
     
@@ -112,7 +112,7 @@ class VideoCompositor {
         }
         
         // 5. Update zoom state machine
-        updateZoomState()
+        updateZoomState(currentCursorPos: cursorPosition)
         
         // 6. Get FROZEN camera transform (no recalculation)
         let cameraTransform = getFrozenCameraTransform(wideTransform: wideTransform)
@@ -202,26 +202,31 @@ class VideoCompositor {
         let targetTransform = calculateFocusTransform(focusRect: focusRect, baseScale: baseScale, contentRect: contentRect, screenSize: screenSize)
         
         // Start zoom in with FROZEN transform
-        zoomState = .zoomingIn(startTime: Date(), targetTransform: targetTransform, wideTransform: wideTransform)
+        zoomState = .zoomingIn(startTime: Date(), targetTransform: targetTransform, wideTransform: wideTransform, triggerPosition: trigger.position)
     }
     
-    private func updateZoomState() {
+    private func updateZoomState(currentCursorPos: CGPoint) {
         let now = Date()
         
         switch zoomState {
         case .wide:
             break
             
-        case .zoomingIn(let startTime, let targetTransform, let wideTransform):
+        case .zoomingIn(let startTime, let targetTransform, let wideTransform, let triggerPosition):
             let elapsed = now.timeIntervalSince(startTime)
             if elapsed >= zoomInDuration {
-                zoomState = .holding(transform: targetTransform, holdStartTime: now, wideTransform: wideTransform)
+                zoomState = .holding(transform: targetTransform, holdStartTime: now, wideTransform: wideTransform, triggerPosition: triggerPosition)
             }
             
-        case .holding(_, let holdStartTime, let wideTransform):
+        case .holding(let transform, let holdStartTime, let wideTransform, let triggerPosition):
             let elapsed = now.timeIntervalSince(holdStartTime)
-            if elapsed >= holdDuration {
-                guard case .holding(let transform, _, _) = zoomState else { return }
+            
+            // Check if cursor has moved far from the initial trigger position
+            let distance = hypot(currentCursorPos.x - triggerPosition.x, currentCursorPos.y - triggerPosition.y)
+            let movedAway = distance > 150.0 // 150 pixels threshold
+            
+            // Stay zoomed in if cursor is close. If cursor moves away, zoom out after minimum hold of 1.0 second.
+            if elapsed >= 1.0 && movedAway {
                 zoomState = .zoomingOut(startTime: now, fromTransform: transform, wideTransform: wideTransform)
             }
             
@@ -240,14 +245,14 @@ class VideoCompositor {
         case .wide:
             return wideTransform
             
-        case .zoomingIn(let startTime, let targetTransform, let wideTransform):
+        case .zoomingIn(let startTime, let targetTransform, let wideTransform, _):
             // Interpolate from wide to target
             let elapsed = now.timeIntervalSince(startTime)
             let progress = min(1.0, elapsed / zoomInDuration)
             let easedProgress = easeInOut(progress)
             return interpolate(from: wideTransform, to: targetTransform, progress: easedProgress)
             
-        case .holding(let transform, _, _):
+        case .holding(let transform, _, _, _):
             // LOCKED - return frozen transform
             return transform
             

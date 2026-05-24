@@ -91,12 +91,21 @@ class CursorManager: ObservableObject {
         }
     }
     
+    private var isFirstUpdate = true
+    
     private func updateCursor() {
         guard let event = CGEvent(source: nil) else { return }
         let location = event.location
         
         DispatchQueue.main.async {
             self.currentPosition = location
+            
+            if self.isFirstUpdate {
+                self.isFirstUpdate = false
+                self.dwellStartPosition = location
+                self.lastPosition = location
+                return
+            }
             
             if self.zoomTriggerMode == .manual {
                 // Manual Key Logic handled by event monitors

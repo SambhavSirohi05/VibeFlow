@@ -269,7 +269,13 @@ extension ScreenRecorder: SCStreamOutput {
         let displayHeight = CVPixelBufferGetHeight(pixelBuffer)
         let displayRect = CGRect(x: 0, y: 0, width: displayWidth, height: displayHeight)
         
-        let cursorPos = cursorManager.currentPosition
+        let rawCursorPos = cursorManager.currentPosition
+        let translatedCursorPos: CGPoint
+        if let display = selectedDisplay {
+            translatedCursorPos = translateCursorPosition(rawCursorPos, for: display, frameWidth: displayWidth, frameHeight: displayHeight)
+        } else {
+            translatedCursorPos = rawCursorPos
+        }
         let focusTrigger = cursorManager.focusZoomTrigger
         
         let translatedTrigger: CursorManager.FocusZoomTrigger?
@@ -290,7 +296,7 @@ extension ScreenRecorder: SCStreamOutput {
         
         if let composedBuffer = compositor.compose(
             screenFrame: pixelBuffer,
-            cursorPosition: cursorPos,
+            cursorPosition: translatedCursorPos,
             displayFrame: displayRect,
             focusZoomTrigger: translatedTrigger,
             targetOutputSize: outputSize
