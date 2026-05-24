@@ -142,6 +142,14 @@ struct RecorderView: View {
                         }
                         .pickerStyle(.menu)
                         .frame(width: 200)
+                        
+                        Picker("Resolution", selection: $recorder.renderConfig.recordingResolution) {
+                            ForEach(RecordingResolution.allCases) { resolution in
+                                Text(resolution.rawValue).tag(resolution)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: 200)
                     }
                     
                     Button("Layout Settings") {
