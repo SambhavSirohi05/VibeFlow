@@ -167,4 +167,17 @@ class CursorManager: ObservableObject {
     func clearFocusZoomTrigger() {
         focusZoomTrigger = nil
     }
+    
+    func reset() {
+        dwellTimer?.invalidate()
+        dwellTimer = nil
+        focusZoomTrigger = nil
+        lastZoomPosition = nil
+        isClicking = false
+        // Update dwell start position to current position to avoid triggering zoom immediately
+        if let event = CGEvent(source: nil) {
+            dwellStartPosition = event.location
+            lastPosition = event.location
+        }
+    }
 }

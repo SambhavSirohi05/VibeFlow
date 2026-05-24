@@ -102,7 +102,7 @@ struct RecorderView: View {
                         .font(.title2)
                         .foregroundStyle(.green)
                     
-                    Text(verbatim: recorder.renderConfig.preset.rawValue)
+                    Text(verbatim: recorder.renderConfig.recordingResolution.rawValue)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     

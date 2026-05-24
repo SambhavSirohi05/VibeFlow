@@ -45,31 +45,6 @@ enum RecordingResolution: String, CaseIterable, Identifiable {
     }
 }
 
-enum ExportPreset: String, CaseIterable, Identifiable {
-    case original = "Original"
-    case landscape16_9 = "16:9 Landscape"
-    case square = "1:1 Square"
-    case portrait9_16 = "9:16 Portrait"
-    
-    var id: String { rawValue }
-    
-    func size(for sourceSize: CGSize) -> CGSize {
-        switch self {
-        case .original:
-            return sourceSize
-        case .landscape16_9:
-            let maxDim = max(sourceSize.width, sourceSize.height)
-            return CGSize(width: maxDim, height: maxDim * 9 / 16)
-        case .square:
-            let maxDim = max(sourceSize.width, sourceSize.height)
-            return CGSize(width: maxDim, height: maxDim)
-        case .portrait9_16:
-            let maxDim = max(sourceSize.width, sourceSize.height)
-            return CGSize(width: maxDim * 9 / 16, height: maxDim)
-        }
-    }
-}
-
 enum ZoomTriggerMode: String, CaseIterable, Identifiable {
     case auto = "Auto"
     case manual = "Manual Key"
@@ -82,7 +57,6 @@ struct RendererConfiguration {
     var cornerRadius: CGFloat = 16
     var shadowRadius: CGFloat = 10
     var padding: CGFloat = 50
-    var preset: ExportPreset = .original
     var recordingResolution: RecordingResolution = .native
     var outputDirectory: URL? = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
     
@@ -106,7 +80,6 @@ struct RendererConfiguration {
         cornerRadius: 16,
         shadowRadius: 10,
         padding: 50,
-        preset: .original,
         recordingResolution: .native,
         enableCursorZoom: true,
         zoomTriggerMode: .auto,
@@ -245,11 +218,11 @@ struct BackgroundRenderer: View {
                         
                         if let image = NSImage(contentsOf: url) {
                             Image(nsImage: image)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(height: 80)
-                                .cornerRadius(8)
-                                .clipped()
+                               .resizable()
+                               .aspectRatio(contentMode: .fill)
+                               .frame(height: 80)
+                               .cornerRadius(8)
+                               .clipped()
                         } else {
                             Text("No image selected")
                                 .foregroundStyle(.secondary)
@@ -289,12 +262,6 @@ struct BackgroundRenderer: View {
             }
             
             GroupBox(label: Text("Layout")) {
-                Picker("Preset", selection: $config.preset) {
-                    ForEach(ExportPreset.allCases) { preset in
-                        Text(preset.rawValue).tag(preset)
-                    }
-                }
-                
                 HStack {
                     Text("Padding")
                     Slider(value: $config.padding, in: 0...200)
@@ -335,13 +302,6 @@ struct BackgroundRenderer: View {
                             Text(String(format: "%.1fs", config.zoomIdleDelay))
                                 .frame(width: 40)
                         }
-                    }
-                    
-                    HStack {
-                        Text("Zoom Strength")
-                        Slider(value: $config.zoomStrength, in: 1.0...3.0, step: 0.1)
-                        Text(String(format: "%.1fx", config.zoomStrength))
-                            .frame(width: 40)
                     }
                 }
             }

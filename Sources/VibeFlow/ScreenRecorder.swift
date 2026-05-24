@@ -66,9 +66,16 @@ class ScreenRecorder: NSObject, ObservableObject {
             let assetWriter = try AVAssetWriter(outputURL: fileURL, fileType: .mov)
             storage.assetWriter = assetWriter
             
-            // Use Recording Resolution from config
+            // Reset zoom manager and compositor zoom state before starting capture
+            cursorManager.reset()
+            compositor.resetZoomState()
+            
+            // Use Recording Resolution size (ensuring even dimensions for H.264/HEVC encoding)
             let displaySize = CGSize(width: CGFloat(display.width), height: CGFloat(display.height))
-            let outputSize = renderConfig.recordingResolution.size(for: displaySize)
+            let baseResolutionSize = renderConfig.recordingResolution.size(for: displaySize)
+            let evenWidth = (Int(baseResolutionSize.width) / 2) * 2
+            let evenHeight = (Int(baseResolutionSize.height) / 2) * 2
+            let outputSize = CGSize(width: CGFloat(evenWidth), height: CGFloat(evenHeight))
             storage.outputSize = outputSize  // Store for use in compositor
             
             let videoSettings: [String: Any] = [

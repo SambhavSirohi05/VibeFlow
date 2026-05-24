@@ -94,8 +94,8 @@ class VideoCompositor {
         let baseWidthRatio = paddedWidth / screenImage.extent.width
         let baseHeightRatio = paddedHeight / screenImage.extent.height
         
-        // Use MAX to fill the space (aspect-fill behavior, no letterboxing)
-        let baseScale = max(baseWidthRatio, baseHeightRatio)
+        // Use MIN to fit the screen inside the padded canvas (aspect-fit behavior)
+        let baseScale = min(baseWidthRatio, baseHeightRatio)
         
         let contentWidth = screenImage.extent.width * baseScale
         let contentHeight = screenImage.extent.height * baseScale
@@ -112,7 +112,7 @@ class VideoCompositor {
         }
         
         // 5. Update zoom state machine
-        updateZoomState(currentCursorPos: cursorPosition)
+        updateZoomState(currentCursorPos: cursorPosition, screenSize: screenImage.extent.size)
         
         // 6. Get FROZEN camera transform (no recalculation)
         let cameraTransform = getFrozenCameraTransform(wideTransform: wideTransform)
@@ -185,9 +185,9 @@ class VideoCompositor {
         let localX = trigger.position.x - displayFrame.minX
         let localY = trigger.position.y - displayFrame.minY
         
-        // Calculate focus rect (35-45% of screen width)
-        let focusWidth = screenSize.width * 0.4
-        let focusHeight = screenSize.height * 0.4
+        // Calculate focus rect dynamically based on zoomStrength (e.g. 1.5x zoom means viewport is screenSize / 1.5)
+        let focusWidth = screenSize.width / config.zoomStrength
+        let focusHeight = screenSize.height / config.zoomStrength
         
         var focusX = localX - focusWidth / 2
         var focusY = localY - focusHeight / 2
@@ -205,7 +205,7 @@ class VideoCompositor {
         zoomState = .zoomingIn(startTime: Date(), targetTransform: targetTransform, wideTransform: wideTransform, triggerPosition: trigger.position)
     }
     
-    private func updateZoomState(currentCursorPos: CGPoint) {
+    private func updateZoomState(currentCursorPos: CGPoint, screenSize: CGSize) {
         let now = Date()
         
         switch zoomState {
@@ -223,7 +223,8 @@ class VideoCompositor {
             
             // Check if cursor has moved far from the initial trigger position
             let distance = hypot(currentCursorPos.x - triggerPosition.x, currentCursorPos.y - triggerPosition.y)
-            let movedAway = distance > 150.0 // 150 pixels threshold
+            let threshold = screenSize.width * 0.25 // Let user move cursor within 25% of screen width before zooming out
+            let movedAway = distance > threshold
             
             // Stay zoomed in if cursor is close. If cursor moves away, zoom out after minimum hold of 1.0 second.
             if elapsed >= 1.0 && movedAway {
@@ -266,9 +267,9 @@ class VideoCompositor {
     }
     
     private func calculateFocusTransform(focusRect: CGRect, baseScale: CGFloat, contentRect: CGRect, screenSize: CGSize) -> CGAffineTransform {
-        // Calculate scale to fit focus rect into content rect
-        let scaleX = contentRect.width / focusRect.width
-        let scaleY = contentRect.height / focusRect.height
+        // Calculate scale to fit focus rect into content rect using raw screen dimensions to prevent base-scale pollution
+        let scaleX = screenSize.width / focusRect.width
+        let scaleY = screenSize.height / focusRect.height
         let focusScale = min(scaleX, scaleY, config.zoomStrength)  // Cap at config zoom strength
         
         let finalScale = baseScale * focusScale
@@ -330,6 +331,10 @@ class VideoCompositor {
             return buffer
         }
         return nil
+    }
+    
+    func resetZoomState() {
+        zoomState = .wide
     }
 }
 
