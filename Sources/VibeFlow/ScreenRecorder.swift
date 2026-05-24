@@ -263,6 +263,7 @@ extension ScreenRecorder: SCStreamOutput {
         // Sync CursorManager config
         cursorManager.zoomTriggerMode = renderConfig.zoomTriggerMode
         cursorManager.triggerKey = renderConfig.triggerKey
+        cursorManager.zoomIdleDelay = renderConfig.zoomIdleDelay
         
         let cursorPos = cursorManager.currentPosition
         let focusTrigger = cursorManager.focusZoomTrigger

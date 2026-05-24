@@ -264,7 +264,7 @@ class VideoCompositor {
         // Calculate scale to fit focus rect into content rect
         let scaleX = contentRect.width / focusRect.width
         let scaleY = contentRect.height / focusRect.height
-        let focusScale = min(scaleX, scaleY, maxZoomScale)  // Cap at max zoom
+        let focusScale = min(scaleX, scaleY, config.zoomStrength)  // Cap at config zoom strength
         
         let finalScale = baseScale * focusScale
         
