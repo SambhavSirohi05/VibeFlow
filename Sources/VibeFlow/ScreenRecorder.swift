@@ -265,17 +265,25 @@ extension ScreenRecorder: SCStreamOutput {
         cursorManager.triggerKey = renderConfig.triggerKey
         cursorManager.zoomIdleDelay = renderConfig.zoomIdleDelay
         
+        let displayWidth = CVPixelBufferGetWidth(pixelBuffer)
+        let displayHeight = CVPixelBufferGetHeight(pixelBuffer)
+        let displayRect = CGRect(x: 0, y: 0, width: displayWidth, height: displayHeight)
+        
         let cursorPos = cursorManager.currentPosition
         let focusTrigger = cursorManager.focusZoomTrigger
+        
+        let translatedTrigger: CursorManager.FocusZoomTrigger?
+        if let trigger = focusTrigger, let display = selectedDisplay {
+            let translatedPos = translateCursorPosition(trigger.position, for: display, frameWidth: displayWidth, frameHeight: displayHeight)
+            translatedTrigger = CursorManager.FocusZoomTrigger(position: translatedPos, timestamp: trigger.timestamp, type: trigger.type)
+        } else {
+            translatedTrigger = nil
+        }
         
         // Clear trigger after reading to prevent repeated triggers
         if focusTrigger != nil {
             cursorManager.clearFocusZoomTrigger()
         }
-        
-        let displayWidth = CVPixelBufferGetWidth(pixelBuffer)
-        let displayHeight = CVPixelBufferGetHeight(pixelBuffer)
-        let displayRect = CGRect(x: 0, y: 0, width: displayWidth, height: displayHeight)
         
         // Get output size from storage
         guard let outputSize = storage.outputSize else { return }
@@ -284,7 +292,7 @@ extension ScreenRecorder: SCStreamOutput {
             screenFrame: pixelBuffer,
             cursorPosition: cursorPos,
             displayFrame: displayRect,
-            focusZoomTrigger: focusTrigger,
+            focusZoomTrigger: translatedTrigger,
             targetOutputSize: outputSize
         ) {
              let success = adaptor.append(composedBuffer, withPresentationTime: currentTime)
@@ -292,5 +300,18 @@ extension ScreenRecorder: SCStreamOutput {
                  // print("Failed...")
              }
         }
+    }
+    
+    private func translateCursorPosition(_ globalPoint: CGPoint, for display: SCDisplay, frameWidth: Int, frameHeight: Int) -> CGPoint {
+        let bounds = CGDisplayBounds(display.displayID)
+        guard bounds.width > 0 && bounds.height > 0 else { return .zero }
+        
+        let relativeX = globalPoint.x - bounds.origin.x
+        let relativeY = globalPoint.y - bounds.origin.y
+        
+        let pixelX = relativeX * (CGFloat(frameWidth) / bounds.width)
+        let pixelY = (bounds.height - relativeY) * (CGFloat(frameHeight) / bounds.height)
+        
+        return CGPoint(x: pixelX, y: pixelY)
     }
 }
