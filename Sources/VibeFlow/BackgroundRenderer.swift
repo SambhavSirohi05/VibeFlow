@@ -18,15 +18,29 @@ enum RecordingResolution: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     
     func size(for displaySize: CGSize) -> CGSize {
+        guard displaySize.height > 0 else { return displaySize }
+        
         switch self {
         case .native:
             return displaySize  // Use actual display resolution
         case .hd1080:
-            return CGSize(width: 1920, height: 1080)
+            let targetHeight: CGFloat = 1080
+            let scale = targetHeight / displaySize.height
+            let targetWidth = Int((displaySize.width * scale).rounded())
+            let evenWidth = targetWidth + (targetWidth % 2 == 0 ? 0 : 1)
+            return CGSize(width: CGFloat(evenWidth), height: targetHeight)
         case .qhd1440:
-            return CGSize(width: 2560, height: 1440)
+            let targetHeight: CGFloat = 1440
+            let scale = targetHeight / displaySize.height
+            let targetWidth = Int((displaySize.width * scale).rounded())
+            let evenWidth = targetWidth + (targetWidth % 2 == 0 ? 0 : 1)
+            return CGSize(width: CGFloat(evenWidth), height: targetHeight)
         case .uhd4k:
-            return CGSize(width: 3840, height: 2160)
+            let targetHeight: CGFloat = 2160
+            let scale = targetHeight / displaySize.height
+            let targetWidth = Int((displaySize.width * scale).rounded())
+            let evenWidth = targetWidth + (targetWidth % 2 == 0 ? 0 : 1)
+            return CGSize(width: CGFloat(evenWidth), height: targetHeight)
         }
     }
 }
