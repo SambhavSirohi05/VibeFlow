@@ -138,9 +138,9 @@ struct RendererConfiguration {
     
     // Camera settings
     var enableCamera: Bool = false
-    var cameraPosition: CameraPosition = .bottomLeft
-    var cameraShape: CameraShape = .circle
-    var cameraSize: CGFloat = 200.0
+    var cameraPosition: CameraPosition = .bottomRight
+    var cameraShape: CameraShape = .roundedRectangle
+    var cameraSize: CGFloat = 400.0
     var enableCameraBorder: Bool = false
     
     // Subtitle settings
@@ -175,9 +175,9 @@ struct RendererConfiguration {
         zoomIdleDelay: 0.5,
         audioMode: .both,
         enableCamera: false,
-        cameraPosition: .bottomLeft,
-        cameraShape: .circle,
-        cameraSize: 200.0,
+        cameraPosition: .bottomRight,
+        cameraShape: .roundedRectangle,
+        cameraSize: 400.0,
         enableCameraBorder: false,
         enableAutoSubtitles: false,
         sarvamAPIKey: "",
@@ -519,7 +519,7 @@ struct BackgroundRenderer: View {
                     
                     HStack {
                         Text("Size")
-                        Slider(value: $config.cameraSize, in: 100...300, step: 10)
+                        Slider(value: $config.cameraSize, in: 100...600, step: 10)
                         Text(String(format: "%.0fpx", config.cameraSize))
                             .frame(width: 45)
                     }

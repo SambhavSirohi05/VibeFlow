@@ -86,7 +86,7 @@ class ScreenRecorder: NSObject, ObservableObject {
     private func positionCameraPanel(panel: CameraPreviewPanel, config: RendererConfiguration) {
         guard let mainScreen = NSScreen.main ?? NSScreen.screens.first else { return }
         let screenFrame = mainScreen.visibleFrame
-        let size = config.cameraSize * 1.6
+        let size = (config.cameraSize * 0.5) * 1.6
         
         let x: CGFloat
         let y: CGFloat
@@ -121,7 +121,7 @@ class ScreenRecorder: NSObject, ObservableObject {
                 let panel = CameraPreviewPanel(
                     session: cameraManager.session,
                     shape: newConfig.cameraShape,
-                    size: newConfig.cameraSize,
+                    size: newConfig.cameraSize * 0.5,
                     hasBorder: newConfig.enableCameraBorder,
                     onMove: { [weak self] rect in
                         guard let self = self else { return }
@@ -142,7 +142,7 @@ class ScreenRecorder: NSObject, ObservableObject {
                     positionCameraPanel(panel: panel, config: newConfig)
                     self.lastCameraPosition = newConfig.cameraPosition
                 } else {
-                    let size = newConfig.cameraSize * 1.6
+                    let size = (newConfig.cameraSize * 0.5) * 1.6
                     let oldFrame = panel.frame
                     let newFrame = NSRect(
                         x: oldFrame.midX - size/2,
@@ -157,7 +157,7 @@ class ScreenRecorder: NSObject, ObservableObject {
                     rootView: CameraPreviewBubbleView(
                         session: cameraManager.session,
                         shape: newConfig.cameraShape,
-                        size: newConfig.cameraSize,
+                        size: newConfig.cameraSize * 0.5,
                         hasBorder: newConfig.enableCameraBorder,
                         panel: panel,
                         onMove: { [weak self] rect in
@@ -661,7 +661,23 @@ extension ScreenRecorder: SCStreamOutput {
         
         let displayWidth = CVPixelBufferGetWidth(pixelBuffer)
         let displayHeight = CVPixelBufferGetHeight(pixelBuffer)
-        let displayRect = CGRect(x: 0, y: 0, width: displayWidth, height: displayHeight)
+        
+        let displayPointsWidth: CGFloat
+        let displayPointsHeight: CGFloat
+        if let display = selectedDisplay {
+            let bounds = CGDisplayBounds(display.displayID)
+            if bounds.width > 0 && bounds.height > 0 {
+                displayPointsWidth = bounds.width
+                displayPointsHeight = bounds.height
+            } else {
+                displayPointsWidth = CGFloat(display.width)
+                displayPointsHeight = CGFloat(display.height)
+            }
+        } else {
+            displayPointsWidth = CGFloat(displayWidth)
+            displayPointsHeight = CGFloat(displayHeight)
+        }
+        let displayRect = CGRect(x: 0, y: 0, width: displayPointsWidth, height: displayPointsHeight)
         
         let rawCursorPos = cursorManager.currentPosition
         let translatedCursorPos: CGPoint
