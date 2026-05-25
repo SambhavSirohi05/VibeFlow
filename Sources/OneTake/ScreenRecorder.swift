@@ -197,18 +197,13 @@ class ScreenRecorder: NSObject, ObservableObject {
         
         if shouldShow {
             if storage.teleprompterPanel == nil {
-                let configBinding = Binding<RendererConfiguration>(
-                    get: { [weak self] in self?.renderConfig ?? RendererConfiguration() },
-                    set: { [weak self] in self?.renderConfig = $0 }
-                )
-                
                 let resetBinding = Binding<Bool>(
                     get: { [weak self] in self?.teleprompterResetOffset ?? false },
                     set: { [weak self] in self?.teleprompterResetOffset = $0 }
                 )
                 
                 let panel = TeleprompterPanel(
-                    config: configBinding,
+                    recorder: self,
                     resetOffset: resetBinding,
                     onClose: { [weak self] in
                         guard let self = self else { return }
@@ -467,6 +462,9 @@ class ScreenRecorder: NSObject, ObservableObject {
             self.stream = stream
             isRecording = true
             error = nil
+            
+            // Update stream filters to exclude overlay panels
+            excludePanelsFromCapture()
             
             // Teleprompter 3-second auto-start delay
             if renderConfig.enableTeleprompter {

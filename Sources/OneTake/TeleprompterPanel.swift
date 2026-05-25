@@ -19,6 +19,48 @@ class ClickThroughTextView: NSTextView {
     }
 }
 
+// MARK: - Native AppKit Slider Wrapper for Focus-Free Interaction
+
+struct CustomSlider: NSViewRepresentable {
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    
+    func makeNSView(context: Context) -> NSSlider {
+        let slider = NSSlider()
+        slider.minValue = range.lowerBound
+        slider.maxValue = range.upperBound
+        slider.target = context.coordinator
+        slider.action = #selector(Coordinator.valueChanged(_:))
+        slider.controlSize = .small
+        slider.isContinuous = true
+        return slider
+    }
+    
+    func updateNSView(_ nsView: NSSlider, context: Context) {
+        if nsView.doubleValue != value {
+            nsView.doubleValue = value
+        }
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject {
+        var parent: CustomSlider
+        
+        init(_ parent: CustomSlider) {
+            self.parent = parent
+        }
+        
+        @objc func valueChanged(_ sender: NSSlider) {
+            DispatchQueue.main.async {
+                self.parent.value = sender.doubleValue
+            }
+        }
+    }
+}
+
 // MARK: - Native macOS Glassmorphism (Visual Effect View)
 
 struct VisualEffectView: NSViewRepresentable {
@@ -212,10 +254,10 @@ struct TeleprompterTextView: NSViewRepresentable {
     }
 }
 
-// MARK: - SwiftUI HUD Bubble View
+// MARK: - SwiftUI HUD Bubble View with ScreenRecorder Observation
 
 struct TeleprompterBubbleView: View {
-    @Binding var config: RendererConfiguration
+    @ObservedObject var recorder: ScreenRecorder
     @Binding var resetOffset: Bool
     weak var panel: NSPanel?
     let onClose: () -> Void
@@ -242,10 +284,16 @@ struct TeleprompterBubbleView: View {
             
             // Text Area
             TeleprompterTextView(
-                text: $config.teleprompterText,
-                fontSize: config.teleprompterFontSize,
-                isScrolling: $config.isTeleprompterScrolling,
-                scrollSpeed: config.teleprompterScrollSpeed,
+                text: Binding(
+                    get: { recorder.renderConfig.teleprompterText },
+                    set: { recorder.renderConfig.teleprompterText = $0 }
+                ),
+                fontSize: recorder.renderConfig.teleprompterFontSize,
+                isScrolling: Binding(
+                    get: { recorder.renderConfig.isTeleprompterScrolling },
+                    set: { recorder.renderConfig.isTeleprompterScrolling = $0 }
+                ),
+                scrollSpeed: recorder.renderConfig.teleprompterScrollSpeed,
                 resetOffset: $resetOffset
             )
             .padding(10)
@@ -257,43 +305,52 @@ struct TeleprompterBubbleView: View {
             HStack(spacing: 12) {
                 // Play / Pause Button
                 Button(action: {
-                    config.isTeleprompterScrolling.toggle()
+                    recorder.renderConfig.isTeleprompterScrolling.toggle()
                 }) {
-                    Image(systemName: config.isTeleprompterScrolling ? "pause.fill" : "play.fill")
+                    Image(systemName: recorder.renderConfig.isTeleprompterScrolling ? "pause.fill" : "play.fill")
                         .foregroundColor(.white)
                         .font(.system(size: 13, weight: .bold))
                         .frame(width: 30, height: 30)
-                        .background(Circle().fill(config.isTeleprompterScrolling ? Color.orange : Color.green))
+                        .background(Circle().fill(recorder.renderConfig.isTeleprompterScrolling ? Color.orange : Color.green))
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .help(config.isTeleprompterScrolling ? "Pause Auto-Scroll" : "Play Auto-Scroll")
+                .help(recorder.renderConfig.isTeleprompterScrolling ? "Pause Auto-Scroll" : "Play Auto-Scroll")
                 
-                // Font Size Control
+                // Font Size Control (AppKit Slider for first-mouse compatibility)
                 HStack(spacing: 4) {
                     Image(systemName: "textformat.size")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                     
-                    Slider(value: $config.teleprompterFontSize, in: 16...48, step: 2)
-                        .frame(width: 60)
+                    CustomSlider(
+                        value: Binding(
+                            get: { Double(recorder.renderConfig.teleprompterFontSize) },
+                            set: { recorder.renderConfig.teleprompterFontSize = CGFloat($0) }
+                        ),
+                        range: 16...48
+                    )
+                    .frame(width: 60)
                     
-                    Text("\(Int(config.teleprompterFontSize))pt")
+                    Text("\(Int(recorder.renderConfig.teleprompterFontSize))pt")
                         .font(.system(size: 9, design: .monospaced))
                         .foregroundColor(.secondary)
                         .frame(width: 28, alignment: .trailing)
                 }
                 
-                // Speed Control
+                // Speed Control (AppKit Slider for first-mouse compatibility)
                 HStack(spacing: 4) {
                     Image(systemName: "speedometer")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                     
-                    Slider(value: $config.teleprompterScrollSpeed, in: 10...120, step: 5)
-                        .frame(width: 60)
+                    CustomSlider(
+                        value: $recorder.renderConfig.teleprompterScrollSpeed,
+                        range: 10...120
+                    )
+                    .frame(width: 60)
                     
-                    Text("\(Int(config.teleprompterScrollSpeed))px")
+                    Text("\(Int(recorder.renderConfig.teleprompterScrollSpeed))px")
                         .font(.system(size: 9, design: .monospaced))
                         .foregroundColor(.secondary)
                         .frame(width: 32, alignment: .trailing)
@@ -321,7 +378,7 @@ struct TeleprompterBubbleView: View {
         }
         .background(
             VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
-                .opacity(config.teleprompterOpacity)
+                .opacity(recorder.renderConfig.teleprompterOpacity)
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -332,7 +389,7 @@ struct TeleprompterBubbleView: View {
 class TeleprompterPanel: NSPanel {
     private var cancellables = Set<AnyCancellable>()
     
-    init(config: Binding<RendererConfiguration>, resetOffset: Binding<Bool>, onClose: @escaping () -> Void) {
+    init(recorder: ScreenRecorder, resetOffset: Binding<Bool>, onClose: @escaping () -> Void) {
         let initialRect = NSRect(x: 350, y: 500, width: 440, height: 280)
         
         super.init(
@@ -353,7 +410,7 @@ class TeleprompterPanel: NSPanel {
         
         // Use our custom ClickThroughHostingView to bypass First Mouse activation delays
         let hostingView = ClickThroughHostingView(
-            rootView: TeleprompterBubbleView(config: config, resetOffset: resetOffset, panel: self, onClose: onClose)
+            rootView: TeleprompterBubbleView(recorder: recorder, resetOffset: resetOffset, panel: self, onClose: onClose)
         )
         hostingView.wantsLayer = true
         hostingView.layer?.backgroundColor = .clear
