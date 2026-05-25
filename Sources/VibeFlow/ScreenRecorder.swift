@@ -44,14 +44,16 @@ class ScreenRecorder: NSObject, ObservableObject {
     private let compositor = VideoCompositor()
     private var cancellables = Set<AnyCancellable>()
     
+    private var lastCameraPosition: CameraPosition?
+
     override init() {
         super.init()
         
-        $renderConfig
+        Publishers.CombineLatest($renderConfig, $isRecording)
             .receive(on: RunLoop.main)
-            .sink { [weak self] newConfig in
+            .sink { [weak self] newConfig, isRecording in
                 guard let self = self else { return }
-                self.handleConfigChange(newConfig)
+                self.updateCameraState(newConfig: newConfig, isRecording: isRecording)
             }
             .store(in: &cancellables)
     }
@@ -63,9 +65,39 @@ class ScreenRecorder: NSObject, ObservableObject {
         }
     }
     
-    private func handleConfigChange(_ newConfig: RendererConfiguration) {
-        if newConfig.enableCamera {
+    private func positionCameraPanel(panel: CameraPreviewPanel, config: RendererConfiguration) {
+        guard let mainScreen = NSScreen.main else { return }
+        let screenFrame = mainScreen.visibleFrame
+        let size = config.cameraSize * 1.6
+        
+        let x: CGFloat
+        let y: CGFloat
+        
+        switch config.cameraPosition {
+        case .topLeft:
+            x = screenFrame.minX + 20
+            y = screenFrame.maxY - size - 20
+        case .topRight:
+            x = screenFrame.maxX - size - 20
+            y = screenFrame.maxY - size - 20
+        case .bottomLeft:
+            x = screenFrame.minX + 20
+            y = screenFrame.minY + 20
+        case .bottomRight:
+            x = screenFrame.maxX - size - 20
+            y = screenFrame.minY + 20
+        }
+        
+        panel.setFrame(NSRect(x: x, y: y, width: size, height: size), display: true)
+    }
+    
+    private func updateCameraState(newConfig: RendererConfiguration, isRecording: Bool) {
+        let shouldShowCamera = isRecording && newConfig.enableCamera
+        
+        if shouldShowCamera {
             cameraManager.start()
+            
+            let positionChanged = (lastCameraPosition != newConfig.cameraPosition)
             
             if storage.cameraPanel == nil {
                 let panel = CameraPreviewPanel(
@@ -82,29 +114,25 @@ class ScreenRecorder: NSObject, ObservableObject {
                 )
                 storage.cameraPanel = panel
                 
-                if let mainScreen = NSScreen.main {
-                    let screenFrame = mainScreen.visibleFrame
-                    let size = newConfig.cameraSize * 1.6
-                    let x = screenFrame.maxX - size - 20
-                    let y = screenFrame.minY + 20
-                    panel.setFrame(NSRect(x: x, y: y, width: size, height: size), display: true)
-                    
-                    storage.cameraFrameLock.lock()
-                    storage.cameraPanelFrame = panel.frame
-                    storage.cameraFrameLock.unlock()
-                }
+                positionCameraPanel(panel: panel, config: newConfig)
+                self.lastCameraPosition = newConfig.cameraPosition
                 
                 panel.orderFront(nil)
             } else if let panel = storage.cameraPanel {
-                let size = newConfig.cameraSize * 1.6
-                let oldFrame = panel.frame
-                let newFrame = NSRect(
-                    x: oldFrame.midX - size/2,
-                    y: oldFrame.midY - size/2,
-                    width: size,
-                    height: size
-                )
-                panel.setFrame(newFrame, display: true)
+                if positionChanged {
+                    positionCameraPanel(panel: panel, config: newConfig)
+                    self.lastCameraPosition = newConfig.cameraPosition
+                } else {
+                    let size = newConfig.cameraSize * 1.6
+                    let oldFrame = panel.frame
+                    let newFrame = NSRect(
+                        x: oldFrame.midX - size/2,
+                        y: oldFrame.midY - size/2,
+                        width: size,
+                        height: size
+                    )
+                    panel.setFrame(newFrame, display: true)
+                }
                 
                 let contentView = NSHostingView(
                     rootView: CameraPreviewBubbleView(
@@ -139,6 +167,7 @@ class ScreenRecorder: NSObject, ObservableObject {
                 storage.cameraPanelFrame = nil
                 storage.cameraFrameLock.unlock()
             }
+            self.lastCameraPosition = nil
         }
     }
     
