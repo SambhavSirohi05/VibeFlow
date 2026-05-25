@@ -445,10 +445,18 @@ class ScreenRecorder: NSObject, ObservableObject {
                         }
                         
                         let srtContent = SubtitleGenerator.generateSRT(from: response, style: subtitleStyle)
+                        let segments = SubtitleGenerator.generateSRTSegments(from: response, style: subtitleStyle)
                         
                         if let vURL = videoURL {
                             let srtURL = vURL.deletingPathExtension().appendingPathExtension("srt")
                             try srtContent.write(to: srtURL, atomically: true, encoding: .utf8)
+                            
+                            if !segments.isEmpty {
+                                await MainActor.run {
+                                    self.transcriptionProgress = "Burning captions into video..."
+                                }
+                                _ = try await SubtitleGenerator.burnSubtitles(videoURL: vURL, segments: segments)
+                            }
                         }
                         
                         try? FileManager.default.removeItem(at: wavURL)
