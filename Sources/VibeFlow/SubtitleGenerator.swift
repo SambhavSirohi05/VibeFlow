@@ -39,11 +39,18 @@ class SubtitleGenerator {
         let endTimeSeconds: Double
     }
     
+    struct WordTiming {
+        let word: String
+        let startTime: Double
+        let endTime: Double
+    }
+    
     struct SRTSegment {
         let index: Int
         let startTime: Double
         let endTime: Double
         let text: String
+        var words: [WordTiming] = []
         
         var srtFormat: String {
             let startStr = formatTime(startTime)
@@ -99,8 +106,41 @@ class SubtitleGenerator {
         }
     }
     
+    // MARK: - Tokenize and Interpolate helper
+    
+    /// Splits composite phrase-level timestamps from the API response into word-level ones by distributing duration proportionally to character count.
+    static func tokenizeAndInterpolate(timestamps: [SarvamTimestamp]) -> [SarvamTimestamp] {
+        var result: [SarvamTimestamp] = []
+        for ts in timestamps {
+            let words = ts.word.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+            if words.count <= 1 {
+                result.append(ts)
+            } else {
+                let totalChars = words.reduce(0) { $0 + $1.count }
+                guard totalChars > 0 else { continue }
+                
+                let duration = ts.endTimeSeconds - ts.startTimeSeconds
+                var currentStart = ts.startTimeSeconds
+                
+                for word in words {
+                    let wordDuration = duration * (Double(word.count) / Double(totalChars))
+                    let currentEnd = currentStart + wordDuration
+                    result.append(
+                        SarvamTimestamp(
+                            word: word,
+                            startTimeSeconds: currentStart,
+                            endTimeSeconds: currentEnd
+                        )
+                    )
+                    currentStart = currentEnd
+                }
+            }
+        }
+        return result
+    }
+    
     /// Generates individual segments from response timing info
-    static func generateSRTSegments(from response: SarvamResponse, style: SubtitleStyle) -> [SRTSegment] {
+    static func generateSRTSegments(from response: SarvamResponse, style: SubtitleStyle, duration: Double? = nil) -> [SRTSegment] {
         // Reconstruct flat timestamp array from parallel arrays returned by the API
         var reconstructedTimestamps: [SarvamTimestamp] = []
         if let ts = response.timestamps,
@@ -119,97 +159,89 @@ class SubtitleGenerator {
             }
         }
         
+        // Proactively expand/tokenize word blocks that may contain multiple words (e.g. from Sarvam API)
+        reconstructedTimestamps = tokenizeAndInterpolate(timestamps: reconstructedTimestamps)
+        
         guard !reconstructedTimestamps.isEmpty else {
             // Fallback: entire transcript as a single block if no timestamps are present
             if let transcript = response.transcript, !transcript.isEmpty {
-                return [SRTSegment(index: 1, startTime: 0.0, endTime: 5.0, text: transcript)]
+                let end = min(duration ?? 5.0, 5.0)
+                return [SRTSegment(index: 1, startTime: 0.0, endTime: end, text: transcript, words: [])]
             }
             return []
         }
         
         var segments: [SRTSegment] = []
         
-        switch style {
-        case .wordByWord:
-            for (i, wordInfo) in reconstructedTimestamps.enumerated() {
-                let segment = SRTSegment(
-                    index: i + 1,
-                    startTime: wordInfo.startTimeSeconds,
-                    endTime: wordInfo.endTimeSeconds,
-                    text: wordInfo.word
-                )
-                segments.append(segment)
+        var currentIndex = 1
+        var groupWords: [WordTiming] = []
+        var groupStart: Double? = nil
+        var groupEnd: Double = 0.0
+        
+        let maxWordsPerLine = 7
+        let maxDuration = 3.0 // seconds
+        let maxSilenceGap = 1.2 // seconds
+        
+        for wordInfo in reconstructedTimestamps {
+            let wordStart = wordInfo.startTimeSeconds
+            let wordEnd = wordInfo.endTimeSeconds
+            let word = wordInfo.word
+            
+            if groupStart == nil {
+                groupStart = wordStart
             }
             
-        case .grouped:
-            var currentIndex = 1
-            var groupWords: [String] = []
-            var groupStart: Double? = nil
-            var groupEnd: Double = 0.0
-            
-            let maxWordsPerLine = 7
-            let maxDuration = 3.0 // seconds
-            let maxSilenceGap = 1.2 // seconds
-            
-            for wordInfo in reconstructedTimestamps {
-                let wordStart = wordInfo.startTimeSeconds
-                let wordEnd = wordInfo.endTimeSeconds
-                let word = wordInfo.word
+            let shouldFlush: Bool
+            if groupWords.isEmpty {
+                shouldFlush = false
+            } else {
+                let silenceGap = wordStart - groupEnd
+                let currentDuration = wordEnd - (groupStart ?? wordStart)
                 
-                if groupStart == nil {
-                    groupStart = wordStart
-                }
-                
-                let shouldFlush: Bool
-                if groupWords.isEmpty {
-                    shouldFlush = false
-                } else {
-                    let silenceGap = wordStart - groupEnd
-                    let currentDuration = wordEnd - (groupStart ?? wordStart)
-                    
-                    shouldFlush = (silenceGap > maxSilenceGap) ||
-                                   (currentDuration > maxDuration) ||
-                                   (groupWords.count >= maxWordsPerLine)
-                }
-                
-                if shouldFlush {
-                    let text = groupWords.joined(separator: " ")
-                    let segment = SRTSegment(
-                        index: currentIndex,
-                        startTime: groupStart ?? 0.0,
-                        endTime: groupEnd,
-                        text: text
-                    )
-                    segments.append(segment)
-                    
-                    currentIndex += 1
-                    groupWords = [word]
-                    groupStart = wordStart
-                    groupEnd = wordEnd
-                } else {
-                    groupWords.append(word)
-                    groupEnd = wordEnd
-                }
+                shouldFlush = (silenceGap > maxSilenceGap) ||
+                               (currentDuration > maxDuration) ||
+                               (groupWords.count >= maxWordsPerLine)
             }
             
-            if !groupWords.isEmpty {
-                let text = groupWords.joined(separator: " ")
+            if shouldFlush {
+                let text = groupWords.map { $0.word }.joined(separator: " ")
                 let segment = SRTSegment(
                     index: currentIndex,
                     startTime: groupStart ?? 0.0,
                     endTime: groupEnd,
-                    text: text
+                    text: text,
+                    words: groupWords
                 )
                 segments.append(segment)
+                
+                currentIndex += 1
+                groupWords = [WordTiming(word: word, startTime: wordStart, endTime: wordEnd)]
+                groupStart = wordStart
+                groupEnd = wordEnd
+            } else {
+                groupWords.append(WordTiming(word: word, startTime: wordStart, endTime: wordEnd))
+                groupEnd = wordEnd
             }
+        }
+        
+        if !groupWords.isEmpty {
+            let text = groupWords.map { $0.word }.joined(separator: " ")
+            let segment = SRTSegment(
+                index: currentIndex,
+                startTime: groupStart ?? 0.0,
+                endTime: groupEnd,
+                text: text,
+                words: groupWords
+            )
+            segments.append(segment)
         }
         
         return segments
     }
     
     /// Converts Sarvam response into a standard SRT subtitle string
-    static func generateSRT(from response: SarvamResponse, style: SubtitleStyle) -> String {
-        let segments = generateSRTSegments(from: response, style: style)
+    static func generateSRT(from response: SarvamResponse, style: SubtitleStyle, duration: Double? = nil) -> String {
+        let segments = generateSRTSegments(from: response, style: style, duration: duration)
         return segments.map { $0.srtFormat }.joined()
     }
     
@@ -219,6 +251,7 @@ class SubtitleGenerator {
     static func burnSubtitles(
         videoURL: URL,
         segments: [SRTSegment],
+        style: SubtitleStyle,
         fontSize: SubtitleFontSize = .medium,
         textColor: SubtitleTextColor = .white,
         bgOpacity: Double = 0.6
@@ -251,7 +284,14 @@ class SubtitleGenerator {
             let canvasSize = sourceImage.extent.size
             
             if let activeSegment = segments.first(where: { time >= $0.startTime && time <= $0.endTime }) {
-                let cacheKey = "\(activeSegment.text)_\(canvasSize.width)x\(canvasSize.height)"
+                let isWordByWord = (style == .wordByWord)
+                var activeWordIndex: Int? = nil
+                if isWordByWord {
+                    activeWordIndex = activeSegment.words.firstIndex(where: { time >= $0.startTime && time <= $0.endTime })
+                }
+                
+                let activeIdxStr = activeWordIndex != nil ? "\(activeWordIndex!)" : "nil"
+                let cacheKey = "\(activeSegment.text)_\(activeIdxStr)_\(canvasSize.width)x\(canvasSize.height)"
                 
                 cacheLock.lock()
                 let cachedImage = imageCache[cacheKey]
@@ -265,6 +305,9 @@ class SubtitleGenerator {
                 
                 if let textImage = drawSubtitleImage(
                     text: activeSegment.text,
+                    words: activeSegment.words,
+                    isWordByWord: isWordByWord,
+                    activeWordIndex: activeWordIndex,
                     canvasSize: canvasSize,
                     fontSize: fontSize,
                     textColor: textColor,
@@ -306,6 +349,9 @@ class SubtitleGenerator {
     /// Renders text with line wrapping and a rounded black bounding box into a small overlay image
     private static func drawSubtitleImage(
         text: String,
+        words: [WordTiming],
+        isWordByWord: Bool,
+        activeWordIndex: Int?,
         canvasSize: CGSize,
         fontSize: SubtitleFontSize,
         textColor: SubtitleTextColor,
@@ -320,14 +366,45 @@ class SubtitleGenerator {
         paragraphStyle.alignment = .center
         paragraphStyle.lineBreakMode = .byWordWrapping
         
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: textColor.color,
-            .paragraphStyle: paragraphStyle
-        ]
+        // Build Attributed String
+        let attributedString = NSMutableAttributedString()
+        let highlightColor = textColor.color
+        let mutedColor = NSColor.white.withAlphaComponent(0.4)
+        
+        if words.isEmpty {
+            attributedString.append(NSAttributedString(string: text, attributes: [
+                .font: font,
+                .foregroundColor: highlightColor,
+                .paragraphStyle: paragraphStyle
+            ]))
+        } else {
+            for (idx, w) in words.enumerated() {
+                if idx > 0 {
+                    attributedString.append(NSAttributedString(string: " ", attributes: [
+                        .font: font,
+                        .foregroundColor: mutedColor,
+                        .paragraphStyle: paragraphStyle
+                    ]))
+                }
+                
+                let isHighlighted: Bool
+                if let activeIdx = activeWordIndex {
+                    isHighlighted = (idx == activeIdx)
+                } else {
+                    isHighlighted = !isWordByWord
+                }
+                
+                let color = isHighlighted ? highlightColor : mutedColor
+                attributedString.append(NSAttributedString(string: w.word, attributes: [
+                    .font: font,
+                    .foregroundColor: color,
+                    .paragraphStyle: paragraphStyle
+                ]))
+            }
+        }
         
         let constraintSize = CGSize(width: maxTextWidth, height: CGFloat.greatestFiniteMagnitude)
-        let textRect = text.boundingRect(with: constraintSize, options: .usesLineFragmentOrigin, attributes: attributes, context: nil)
+        let textRect = attributedString.boundingRect(with: constraintSize, options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
         
         let textWidth = ceil(textRect.width)
         let textHeight = ceil(textRect.height)
@@ -365,7 +442,7 @@ class SubtitleGenerator {
             width: textWidth,
             height: textHeight
         )
-        text.draw(in: textDrawRect, withAttributes: attributes)
+        attributedString.draw(in: textDrawRect)
         
         NSGraphicsContext.restoreGraphicsState()
         
