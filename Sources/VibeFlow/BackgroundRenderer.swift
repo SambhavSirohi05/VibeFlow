@@ -90,7 +90,8 @@ struct RendererConfiguration {
     var enableCamera: Bool = false
     var cameraPosition: CameraPosition = .bottomLeft
     var cameraShape: CameraShape = .circle
-    var cameraSize: CGFloat = 140.0
+    var cameraSize: CGFloat = 200.0
+    var enableCameraBorder: Bool = false
     
     // For convenience in UI
     var solidColor: Color = .blue
@@ -110,7 +111,8 @@ struct RendererConfiguration {
         enableCamera: false,
         cameraPosition: .bottomLeft,
         cameraShape: .circle,
-        cameraSize: 140.0,
+        cameraSize: 200.0,
+        enableCameraBorder: false,
         solidColor: .blue,
         gradientColors: [Color(red: 0.2, green: 0.2, blue: 0.6), Color(red: 0.6, green: 0.2, blue: 0.4)]
     )
@@ -341,10 +343,12 @@ struct BackgroundRenderer: View {
                     
                     HStack {
                         Text("Size")
-                        Slider(value: $config.cameraSize, in: 80...240, step: 10)
+                        Slider(value: $config.cameraSize, in: 100...300, step: 10)
                         Text(String(format: "%.0fpx", config.cameraSize))
                             .frame(width: 45)
                     }
+                    
+                    Toggle("Show Border", isOn: $config.enableCameraBorder)
                 }
             }
             

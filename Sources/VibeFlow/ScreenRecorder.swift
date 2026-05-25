@@ -4,6 +4,7 @@ import OSLog
 import AppKit
 import AVFoundation
 import SwiftUI
+import Combine
 
 @MainActor
 class ScreenRecorder: NSObject, ObservableObject {
@@ -27,6 +28,9 @@ class ScreenRecorder: NSObject, ObservableObject {
         let sessionLock = NSLock()
         var firstSampleTime: CMTime = .zero
         var outputSize: CGSize?  // Store the output resolution
+        var cameraPanel: CameraPreviewPanel?
+        var cameraPanelFrame: CGRect?
+        let cameraFrameLock = NSLock()
     }
     nonisolated let storage = Storage()
     
@@ -38,9 +42,104 @@ class ScreenRecorder: NSObject, ObservableObject {
     private let cursorManager = CursorManager()
     private let cameraManager = CameraManager()
     private let compositor = VideoCompositor()
+    private var cancellables = Set<AnyCancellable>()
     
     override init() {
         super.init()
+        
+        $renderConfig
+            .receive(on: RunLoop.main)
+            .sink { [weak self] newConfig in
+                guard let self = self else { return }
+                self.handleConfigChange(newConfig)
+            }
+            .store(in: &cancellables)
+    }
+    
+    deinit {
+        let panel = storage.cameraPanel
+        DispatchQueue.main.async {
+            panel?.orderOut(nil)
+        }
+    }
+    
+    private func handleConfigChange(_ newConfig: RendererConfiguration) {
+        if newConfig.enableCamera {
+            cameraManager.start()
+            
+            if storage.cameraPanel == nil {
+                let panel = CameraPreviewPanel(
+                    session: cameraManager.session,
+                    shape: newConfig.cameraShape,
+                    size: newConfig.cameraSize,
+                    hasBorder: newConfig.enableCameraBorder,
+                    onMove: { [weak self] rect in
+                        guard let self = self else { return }
+                        self.storage.cameraFrameLock.lock()
+                        self.storage.cameraPanelFrame = rect
+                        self.storage.cameraFrameLock.unlock()
+                    }
+                )
+                storage.cameraPanel = panel
+                
+                if let mainScreen = NSScreen.main {
+                    let screenFrame = mainScreen.visibleFrame
+                    let size = newConfig.cameraSize * 1.6
+                    let x = screenFrame.maxX - size - 20
+                    let y = screenFrame.minY + 20
+                    panel.setFrame(NSRect(x: x, y: y, width: size, height: size), display: true)
+                    
+                    storage.cameraFrameLock.lock()
+                    storage.cameraPanelFrame = panel.frame
+                    storage.cameraFrameLock.unlock()
+                }
+                
+                panel.orderFront(nil)
+            } else if let panel = storage.cameraPanel {
+                let size = newConfig.cameraSize * 1.6
+                let oldFrame = panel.frame
+                let newFrame = NSRect(
+                    x: oldFrame.midX - size/2,
+                    y: oldFrame.midY - size/2,
+                    width: size,
+                    height: size
+                )
+                panel.setFrame(newFrame, display: true)
+                
+                let contentView = NSHostingView(
+                    rootView: CameraPreviewBubbleView(
+                        session: cameraManager.session,
+                        shape: newConfig.cameraShape,
+                        size: newConfig.cameraSize,
+                        hasBorder: newConfig.enableCameraBorder,
+                        panel: panel,
+                        onMove: { [weak self] rect in
+                            guard let self = self else { return }
+                            self.storage.cameraFrameLock.lock()
+                            self.storage.cameraPanelFrame = rect
+                            self.storage.cameraFrameLock.unlock()
+                        }
+                    )
+                )
+                contentView.wantsLayer = true
+                contentView.layer?.backgroundColor = .clear
+                panel.contentView = contentView
+                
+                storage.cameraFrameLock.lock()
+                storage.cameraPanelFrame = panel.frame
+                storage.cameraFrameLock.unlock()
+            }
+        } else {
+            if storage.cameraPanel != nil {
+                storage.cameraPanel?.orderOut(nil)
+                storage.cameraPanel = nil
+                cameraManager.stop()
+                
+                storage.cameraFrameLock.lock()
+                storage.cameraPanelFrame = nil
+                storage.cameraFrameLock.unlock()
+            }
+        }
     }
     
     func fetchAvailableContent() async {
@@ -148,6 +247,7 @@ class ScreenRecorder: NSObject, ObservableObject {
             // Start camera capture (if enabled)
             if renderConfig.enableCamera {
                 cameraManager.start()
+                storage.cameraPanel?.orderFront(nil)
             }
             
             assetWriter.startWriting()
@@ -160,8 +260,21 @@ class ScreenRecorder: NSObject, ObservableObject {
             return
         }
         
+        // Exclude the camera panel window from the recording
+        var excludedWindows: [SCWindow] = []
+        do {
+            let content = try await SCShareableContent.current
+            let panelWindowNumber = storage.cameraPanel?.windowNumber ?? 0
+            if panelWindowNumber > 0 {
+                let matching = content.windows.filter { $0.windowID == CGWindowID(panelWindowNumber) }
+                excludedWindows.append(contentsOf: matching)
+            }
+        } catch {
+            // Ignore failure to fetch windows
+        }
+        
         // SCStream Configuration - use recording resolution
-        let filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
+        let filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: excludedWindows)
         
         let config = SCStreamConfiguration()
         let displaySize = CGSize(width: CGFloat(display.width), height: CGFloat(display.height))
@@ -209,9 +322,6 @@ class ScreenRecorder: NSObject, ObservableObject {
             
             // Stop microphone
             stopMicrophoneCapture()
-            
-            // Stop camera
-            cameraManager.stop()
             
             storage.videoInput?.markAsFinished()
             storage.audioInput?.markAsFinished()
@@ -324,12 +434,33 @@ extension ScreenRecorder: SCStreamOutput {
         // Get output size from storage
         guard let outputSize = storage.outputSize else { return }
         
+        storage.cameraFrameLock.lock()
+        let panelFrame = storage.cameraPanelFrame
+        storage.cameraFrameLock.unlock()
+        
+        var cameraCenterPct: CGPoint? = nil
+        if let panelFrame = panelFrame, let display = selectedDisplay {
+            let bounds = CGDisplayBounds(display.displayID)
+            if bounds.width > 0 && bounds.height > 0, let mainScreen = NSScreen.screens.first {
+                let centerX = panelFrame.midX
+                let centerY = mainScreen.frame.height - panelFrame.midY
+                
+                let relativeX = centerX - bounds.origin.x
+                let relativeY = centerY - bounds.origin.y
+                
+                let pctX = relativeX / bounds.width
+                let pctY = (bounds.height - relativeY) / bounds.height
+                cameraCenterPct = CGPoint(x: pctX, y: pctY)
+            }
+        }
+        
         if let composedBuffer = compositor.compose(
             screenFrame: pixelBuffer,
             cursorPosition: translatedCursorPos,
             displayFrame: displayRect,
             focusZoomTrigger: translatedTrigger,
             cameraFrame: cameraManager.latestFrame,
+            cameraCenterPercent: cameraCenterPct,
             targetOutputSize: outputSize
         ) {
              let success = adaptor.append(composedBuffer, withPresentationTime: currentTime)

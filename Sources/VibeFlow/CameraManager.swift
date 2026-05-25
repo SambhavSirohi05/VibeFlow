@@ -2,7 +2,7 @@ import AVFoundation
 import CoreMedia
 
 class CameraManager: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
-    private let session = AVCaptureSession()
+    let session = AVCaptureSession()
     private let queue = DispatchQueue(label: "com.vibeflow.camera", qos: .userInteractive)
     
     private let lock = NSLock()
