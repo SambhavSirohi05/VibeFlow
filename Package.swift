@@ -2,17 +2,17 @@
 import PackageDescription
 
 let package = Package(
-    name: "VibeFlow",
+    name: "OneTake",
     platforms: [
         .macOS(.v13)
     ],
     products: [
-        .executable(name: "VibeFlow", targets: ["VibeFlow"])
+        .executable(name: "OneTake", targets: ["OneTake"])
     ],
     targets: [
         .executableTarget(
-            name: "VibeFlow",
-            path: "Sources/VibeFlow",
+            name: "OneTake",
+            path: "Sources/OneTake",
             resources: [
                 .process("Resources")
             ]

@@ -602,7 +602,7 @@ struct BackgroundRenderer: View {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.message = "Where should VibeFlow save your recordings?"
+        panel.message = "Where should OneTake save your recordings?"
         panel.prompt = "Select Folder"
         
         let window = NSApp.keyWindow

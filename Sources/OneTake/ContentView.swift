@@ -9,7 +9,7 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             VStack(spacing: 20) {
-                Text("VibeFlow")
+                Text("OneTake")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                 
