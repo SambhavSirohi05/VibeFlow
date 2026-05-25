@@ -3,7 +3,7 @@ import CoreMedia
 
 class CameraManager: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
     let session = AVCaptureSession()
-    private let queue = DispatchQueue(label: "com.vibeflow.camera", qos: .userInteractive)
+    private let queue = DispatchQueue(label: "com.onetake.camera", qos: .userInteractive)
     
     private let lock = NSLock()
     private(set) var latestFrame: CVPixelBuffer?

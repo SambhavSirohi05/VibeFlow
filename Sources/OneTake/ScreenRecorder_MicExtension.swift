@@ -19,7 +19,7 @@ extension ScreenRecorder {
     }
     
     private func setupMicrophoneEngine() {
-        micAudioQueue = DispatchQueue(label: "com.vibeflow.mic")
+        micAudioQueue = DispatchQueue(label: "com.onetake.mic")
         
         let inputNode = audioEngine.inputNode
         let inputFormat = inputNode.outputFormat(forBus: 0)

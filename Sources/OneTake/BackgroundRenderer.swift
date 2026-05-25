@@ -389,12 +389,28 @@ struct BackgroundRenderer: View {
                         .buttonStyle(.bordered)
                         
                         if let image = NSImage(contentsOf: url) {
-                            Image(nsImage: image)
-                               .resizable()
-                               .aspectRatio(contentMode: .fill)
-                               .frame(height: 80)
-                               .cornerRadius(8)
-                               .clipped()
+                            ZStack(alignment: .topTrailing) {
+                                Image(nsImage: image)
+                                   .resizable()
+                                   .aspectRatio(contentMode: .fill)
+                                   .frame(height: 80)
+                                   .frame(maxWidth: .infinity)
+                                   .cornerRadius(8)
+                                   .clipped()
+                                
+                                Button(action: {
+                                    let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("placeholder.png")
+                                    config.background = .image(tempURL)
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.white)
+                                        .background(Circle().fill(Color.black.opacity(0.6)))
+                                        .shadow(radius: 2)
+                                }
+                                .buttonStyle(.plain)
+                                .padding(4)
+                                .help("Remove image")
+                            }
                         } else {
                             Text("No image selected")
                                 .foregroundStyle(.secondary)
@@ -561,8 +577,23 @@ struct BackgroundRenderer: View {
         panel.allowedContentTypes = [.png, .jpeg, .heic, .tiff, .bmp]
         panel.message = "Choose a background image"
         
-        if panel.runModal() == .OK, let url = panel.url {
-            config.background = .image(url)
+        let window = NSApp.keyWindow
+        if let window = window {
+            panel.beginSheetModal(for: window) { response in
+                if response == .OK, let url = panel.url {
+                    DispatchQueue.main.async {
+                        self.config.background = .image(url)
+                    }
+                }
+            }
+        } else {
+            panel.begin { response in
+                if response == .OK, let url = panel.url {
+                    DispatchQueue.main.async {
+                        self.config.background = .image(url)
+                    }
+                }
+            }
         }
     }
     
@@ -571,11 +602,26 @@ struct BackgroundRenderer: View {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.message = "Where should VibeFlow save your recordings?"
+        panel.message = "Where should OneTake save your recordings?"
         panel.prompt = "Select Folder"
         
-        if panel.runModal() == .OK {
-            config.outputDirectory = panel.url
+        let window = NSApp.keyWindow
+        if let window = window {
+            panel.beginSheetModal(for: window) { response in
+                if response == .OK, let url = panel.url {
+                    DispatchQueue.main.async {
+                        self.config.outputDirectory = url
+                    }
+                }
+            }
+        } else {
+            panel.begin { response in
+                if response == .OK, let url = panel.url {
+                    DispatchQueue.main.async {
+                        self.config.outputDirectory = url
+                    }
+                }
+            }
         }
     }
 }

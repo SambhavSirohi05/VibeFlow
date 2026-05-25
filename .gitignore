@@ -4,11 +4,11 @@ Packages/
 Package.pins
 Package.resolved
 *.xcodeproj
-VibeFlow.app/
-VibeFlow.dmg
+OneTake.app/
+OneTake.dmg
 *.mov
 *.mp4
 background.png
 build_dmg.sh
 dmg_root/
-VibeFlow_Visual.dmg
+OneTake_Visual.dmg

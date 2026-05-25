@@ -216,7 +216,7 @@ class ScreenRecorder: NSObject, ObservableObject {
         }
         
         let saveDir = renderConfig.outputDirectory ?? FileManager.default.temporaryDirectory
-        let fileURL = saveDir.appendingPathComponent("VibeFlow-\(Date().timeIntervalSince1970).mov")
+        let fileURL = saveDir.appendingPathComponent("OneTake-\(Date().timeIntervalSince1970).mov")
         
         do {
             let assetWriter = try AVAssetWriter(outputURL: fileURL, fileType: .mov)
@@ -299,7 +299,7 @@ class ScreenRecorder: NSObject, ObservableObject {
             // Initialize WAV file for subtitles if enabled
             if renderConfig.enableAutoSubtitles {
                 let tempDir = FileManager.default.temporaryDirectory
-                let wavURL = tempDir.appendingPathComponent("VibeFlow-mic-\(UUID().uuidString).wav")
+                let wavURL = tempDir.appendingPathComponent("OneTake-mic-\(UUID().uuidString).wav")
                 
                 if let targetFormat = AVAudioFormat(
                     commonFormat: .pcmFormatFloat32,
@@ -391,11 +391,11 @@ class ScreenRecorder: NSObject, ObservableObject {
             let stream = SCStream(filter: filter, configuration: config, delegate: self)
             
             // Add Video Output
-            try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: DispatchQueue(label: "com.vibeflow.recorder.video"))
+            try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: DispatchQueue(label: "com.onetake.recorder.video"))
             
             // Add Audio Output
             if capturesSystemAudio {
-                try stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: DispatchQueue(label: "com.vibeflow.recorder.audio"))
+                try stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: DispatchQueue(label: "com.onetake.recorder.audio"))
             }
             
             try await stream.startCapture()

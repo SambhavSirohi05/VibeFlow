@@ -4,7 +4,7 @@ import AppKit
 #endif
 
 @main
-struct VibeFlowApp: App {
+struct OneTakeApp: App {
     init() {
         #if os(macOS)
         NSApplication.shared.setActivationPolicy(.regular)

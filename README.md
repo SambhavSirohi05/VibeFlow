@@ -1,8 +1,8 @@
-# 🌊 VibeFlow
+# 🎬 OneTake
 
-**VibeFlow** is a cinematic screen recording tool built for the "Vibe Coding" era. It transforms your raw screen captures into professionalapp demos instantly with beautiful backgrounds, smooth animations, and synchronized audio.
+**OneTake** is a cinematic screen recording tool built for the "Vibe Coding" era. It transforms your raw screen captures into professional app demos instantly with beautiful backgrounds, smooth animations, and synchronized audio.
 
-![VibeFlow App Icon](VibeFlow.app/Contents/Resources/AppIcon.png)
+![OneTake App Icon](OneTake.app/Contents/Resources/AppIcon.png)
 
 ## ✨ Features
 
@@ -16,9 +16,9 @@
 ## 🚀 Installation & Usage
 
 ### Method 1: Download the Release (Recommended)
-1. Go to the [Releases](https://github.com/SambhavSirohi05/VibeFlow/releases) page.
-2. Download `VibeFlow.dmg`.
-3. Open the DMG and drag **VibeFlow** to your **Applications** folder.
+1. Go to the [Releases](https://github.com/SambhavSirohi05/OneTake/releases) page.
+2. Download `OneTake.dmg`.
+3. Open the DMG and drag **OneTake** to your **Applications** folder.
 
 > [!IMPORTANT]
 > **First Time Opening:**
@@ -26,15 +26,15 @@
 > 
 > **To fix this:**
 > 1. Open your Terminal.
-> 2. Run this command: `xattr -cr /Applications/VibeFlow.app`
-> 3. **Right-click** VibeFlow in your Applications folder and select **Open**. 
+> 2. Run this command: `xattr -cr /Applications/OneTake.app`
+> 3. **Right-click** OneTake in your Applications folder and select **Open**. 
 > You only need to do this once!
 
 ### Method 2: Build from Source
 If you have Swift installed:
 ```bash
-git clone https://github.com/SambhavSirohi05/VibeFlow.git
-cd VibeFlow
+git clone https://github.com/SambhavSirohi05/OneTake.git
+cd OneTake
 swift run
 ```
 
