@@ -245,50 +245,19 @@ struct RecorderView: View {
                         .frame(width: 380)
                     }
                     
-                    VStack(spacing: 0) {
-                        Divider()
-                            .background(Color.white.opacity(0.12))
-                        
-                        Button(action: {
+                    HStack(spacing: 12) {
+                        Button(recorder.renderConfig.enableTeleprompter ? "Hide Script" : "Show Script") {
                             recorder.renderConfig.enableTeleprompter.toggle()
-                        }) {
-                            HStack {
-                                Image(systemName: "chevron.right")
-                                    .foregroundColor(.secondary)
-                                    .rotationEffect(recorder.renderConfig.enableTeleprompter ? .degrees(90) : .zero)
-                                    .animation(.spring(response: 0.2, dampingFraction: 0.8), value: recorder.renderConfig.enableTeleprompter)
-                                Text(recorder.renderConfig.enableTeleprompter ? "Hide Script" : "Show Script")
-                                    .font(.body)
-                                Spacer()
-                            }
-                            .contentShape(Rectangle())
-                            .padding(.vertical, 14)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.bordered)
+                        .tint(recorder.renderConfig.enableTeleprompter ? .orange : .secondary)
                         
-                        Divider()
-                            .background(Color.white.opacity(0.12))
-                        
-                        Button(action: {
+                        Button("Layout Settings") {
                             recorder.isPreviewingSettings = true
                             showSettings = true
-                        }) {
-                            HStack {
-                                Image(systemName: "chevron.right")
-                                    .foregroundColor(.secondary)
-                                Text("Layout Settings")
-                                    .font(.body)
-                                Spacer()
-                            }
-                            .contentShape(Rectangle())
-                            .padding(.vertical, 14)
                         }
-                        .buttonStyle(.plain)
-                        
-                        Divider()
-                            .background(Color.white.opacity(0.12))
+                        .buttonStyle(.bordered)
                     }
-                    .frame(width: 380)
                     .padding(.vertical, 8)
                     
                     Button(action: {
