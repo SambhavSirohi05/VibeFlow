@@ -19,6 +19,7 @@ class VideoCompositor {
     }
     
     private var zoomState: ZoomState = .wide
+    private var currentCameraScale: CGFloat = 1.0
     
     // Timing constants
     private let zoomInDuration: TimeInterval = 0.3  // 300ms
@@ -31,6 +32,8 @@ class VideoCompositor {
         cursorPosition: CGPoint,
         displayFrame: CGRect,
         focusZoomTrigger: CursorManager.FocusZoomTrigger?,
+        cameraFrame: CVPixelBuffer? = nil,
+        cameraCenterPercent: CGPoint? = nil,
         targetOutputSize: CGSize
     ) -> CVPixelBuffer? {
         
@@ -169,6 +172,146 @@ class VideoCompositor {
         }
         
         composited = transformedContent.composited(over: composited)
+        
+        // 11. Render camera presenter bubble
+        if config.enableCamera, let camera = cameraFrame {
+            let cameraImage = CIImage(cvPixelBuffer: camera)
+            let cameraWidth = cameraImage.extent.width
+            let cameraHeight = cameraImage.extent.height
+            
+            if cameraWidth > 0 && cameraHeight > 0 {
+                let targetWidth: CGFloat
+                let targetHeight: CGFloat
+                let scaledImage: CIImage
+                let radius: CGFloat
+                
+                switch config.cameraShape {
+                case .circle:
+                    targetWidth = config.cameraSize
+                    targetHeight = config.cameraSize
+                    radius = targetWidth / 2
+                    
+                    let cropSide = min(cameraWidth, cameraHeight)
+                    let cropX = (cameraWidth - cropSide) / 2
+                    let cropY = (cameraHeight - cropSide) / 2
+                    let cropRect = CGRect(x: cropX, y: cropY, width: cropSide, height: cropSide)
+                    
+                    let croppedImage = cameraImage.cropped(to: cropRect)
+                    let translatedImage = croppedImage.transformed(by: CGAffineTransform(translationX: -cropX, y: -cropY))
+                    let scale = targetWidth / cropSide
+                    scaledImage = translatedImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+                    
+                case .roundedRectangle:
+                    targetWidth = config.cameraSize
+                    targetHeight = config.cameraSize * (cameraHeight / cameraWidth)
+                    radius = 16.0
+                    
+                    let scaleX = targetWidth / cameraWidth
+                    let scaleY = targetHeight / cameraHeight
+                    scaledImage = cameraImage.transformed(by: CGAffineTransform(scaleX: scaleX, y: scaleY))
+                }
+                
+                // Create mask
+                let maskExtent = CIVector(x: 0, y: 0, z: targetWidth, w: targetHeight)
+                if let maskImage = CIFilter(name: "CIRoundedRectangleGenerator", parameters: [
+                    "inputExtent": maskExtent,
+                    "inputRadius": radius,
+                    "inputColor": CIColor.white
+                ])?.outputImage {
+                    
+                    if let maskedCamera = CIFilter(name: "CISourceInCompositing", parameters: [
+                        "inputImage": scaledImage,
+                        "inputBackgroundImage": maskImage
+                    ])?.outputImage {
+                        
+                        // Add border (optional)
+                        let borderWidth = config.enableCameraBorder ? CGFloat(3.0) : CGFloat(0.0)
+                        let borderSize = CGSize(width: targetWidth + 2 * borderWidth, height: targetHeight + 2 * borderWidth)
+                        let borderRadius = radius + borderWidth
+                        
+                        var borderedCamera: CIImage = maskedCamera
+                        let borderExtent = CIVector(x: 0, y: 0, z: borderSize.width, w: borderSize.height)
+                        if config.enableCameraBorder,
+                           let borderImage = CIFilter(name: "CIRoundedRectangleGenerator", parameters: [
+                               "inputExtent": borderExtent,
+                               "inputRadius": borderRadius,
+                               "inputColor": CIColor.white
+                           ])?.outputImage {
+                            let translatedCamera = maskedCamera.transformed(by: CGAffineTransform(translationX: borderWidth, y: borderWidth))
+                            borderedCamera = translatedCamera.composited(over: borderImage)
+                        }
+                        
+                        // Calculate positioning
+                        let bubbleX: CGFloat
+                        let bubbleY: CGFloat
+                        
+                        if let centerPct = cameraCenterPercent {
+                            let videoCenterX = contentRect.minX + centerPct.x * contentRect.width
+                            let videoCenterY = contentRect.minY + centerPct.y * contentRect.height
+                            
+                            bubbleX = videoCenterX - borderSize.width / 2
+                            bubbleY = videoCenterY - borderSize.height / 2
+                        } else {
+                            let marginX = max(20.0, config.padding)
+                            let marginY = max(20.0, config.padding)
+                            
+                            switch config.cameraPosition {
+                            case .topLeft:
+                                bubbleX = marginX
+                                bubbleY = canvasSize.height - marginY - borderSize.height
+                            case .topRight:
+                                bubbleX = canvasSize.width - marginX - borderSize.width
+                                bubbleY = canvasSize.height - marginY - borderSize.height
+                            case .bottomLeft:
+                                bubbleX = marginX
+                                bubbleY = marginY
+                            case .bottomRight:
+                                bubbleX = canvasSize.width - marginX - borderSize.width
+                                bubbleY = marginY
+                            }
+                        }
+                        
+                        // Generate shadow
+                        let shadowExtent = CIVector(x: 0, y: 0, z: borderSize.width, w: borderSize.height)
+                        if let shadowBase = CIFilter(name: "CIRoundedRectangleGenerator", parameters: [
+                            "inputExtent": shadowExtent,
+                            "inputRadius": borderRadius,
+                            "inputColor": CIColor.black
+                        ])?.outputImage {
+                            
+                            if let shadowImage = CIFilter(name: "CIGaussianBlur", parameters: [
+                                "inputImage": shadowBase,
+                                "inputRadius": CGFloat(10.0)
+                            ])?.outputImage {
+                                
+                                let shadowOffset = CGAffineTransform(translationX: 0, y: -4)
+                                let offsetShadow = shadowImage.transformed(by: shadowOffset)
+                                
+                                let cameraBubbleWithShadow = borderedCamera.composited(over: offsetShadow)
+                                
+                                // Cursor Hover Scaling detection
+                                let bubbleRect = CGRect(x: bubbleX, y: bubbleY, width: borderSize.width, height: borderSize.height)
+                                let isCursorOverCamera = bubbleRect.contains(cursorPosition)
+                                let targetScale: CGFloat = isCursorOverCamera ? 1.3 : 1.0
+                                
+                                // Smooth spring-like ease towards target scale
+                                currentCameraScale += (targetScale - currentCameraScale) * 0.15
+                                
+                                let localCenterX = borderSize.width / 2
+                                let localCenterY = borderSize.height / 2
+                                let scaleTransform = CGAffineTransform(translationX: localCenterX, y: localCenterY)
+                                    .scaledBy(x: currentCameraScale, y: currentCameraScale)
+                                    .translatedBy(x: -localCenterX, y: -localCenterY)
+                                let scaledBubble = cameraBubbleWithShadow.transformed(by: scaleTransform)
+                                
+                                let positionedBubble = scaledBubble.transformed(by: CGAffineTransform(translationX: bubbleX, y: bubbleY))
+                                composited = positionedBubble.composited(over: composited)
+                            }
+                        }
+                    }
+                }
+            }
+        }
         
         return renderToBuffer(composited, size: canvasSize)
     }

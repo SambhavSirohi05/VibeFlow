@@ -37,6 +37,9 @@ extension ScreenRecorder {
         // Create converter if sample rates don't match
         let converter = AVAudioConverter(from: inputFormat, to: targetFormat)
         
+        // Remove existing tap first to prevent "nullptr == Tap()" crash if tap already exists
+        inputNode.removeTap(onBus: 0)
+        
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { [weak self] (buffer, time) in
             guard let self = self else { return }
             
@@ -74,11 +77,11 @@ extension ScreenRecorder {
     }
     
     func stopMicrophoneCapture() {
+        audioEngine.inputNode.removeTap(onBus: 0)
         if audioEngine.isRunning {
-            audioEngine.inputNode.removeTap(onBus: 0)
             audioEngine.stop()
-            audioEngine.reset()  // Reset the engine to allow restarting
         }
+        audioEngine.reset()  // Reset the engine to allow restarting
     }
     
     private func createSampleBuffer(from buffer: AVAudioPCMBuffer) -> CMSampleBuffer? {

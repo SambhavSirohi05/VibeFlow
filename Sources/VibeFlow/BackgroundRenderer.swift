@@ -54,6 +54,22 @@ enum AudioCaptureMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum CameraPosition: String, CaseIterable, Identifiable {
+    case topLeft = "Top Left"
+    case topRight = "Top Right"
+    case bottomLeft = "Bottom Left"
+    case bottomRight = "Bottom Right"
+    
+    var id: String { rawValue }
+}
+
+enum CameraShape: String, CaseIterable, Identifiable {
+    case circle = "Circle"
+    case roundedRectangle = "Rounded Rectangle"
+    
+    var id: String { rawValue }
+}
+
 struct RendererConfiguration {
     var background: BackgroundType = .gradient([.blue, .purple])
     var cornerRadius: CGFloat = 16
@@ -70,6 +86,13 @@ struct RendererConfiguration {
     // Audio settings
     var audioMode: AudioCaptureMode = .both
     
+    // Camera settings
+    var enableCamera: Bool = false
+    var cameraPosition: CameraPosition = .bottomLeft
+    var cameraShape: CameraShape = .circle
+    var cameraSize: CGFloat = 200.0
+    var enableCameraBorder: Bool = false
+    
     // For convenience in UI
     var solidColor: Color = .blue
     var gradientColors: [Color] = [Color(red: 0.2, green: 0.2, blue: 0.6), Color(red: 0.6, green: 0.2, blue: 0.4)]
@@ -85,6 +108,11 @@ struct RendererConfiguration {
         zoomStrength: 1.5,
         zoomIdleDelay: 0.5,
         audioMode: .both,
+        enableCamera: false,
+        cameraPosition: .bottomLeft,
+        cameraShape: .circle,
+        cameraSize: 200.0,
+        enableCameraBorder: false,
         solidColor: .blue,
         gradientColors: [Color(red: 0.2, green: 0.2, blue: 0.6), Color(red: 0.6, green: 0.2, blue: 0.4)]
     )
@@ -294,6 +322,33 @@ struct BackgroundRenderer: View {
                     ForEach(AudioCaptureMode.allCases) { mode in
                         Text(mode.rawValue).tag(mode)
                     }
+                }
+            }
+            
+            GroupBox(label: Text("Camera")) {
+                Toggle("Enable Camera", isOn: $config.enableCamera)
+                
+                if config.enableCamera {
+                    Picker("Position", selection: $config.cameraPosition) {
+                        ForEach(CameraPosition.allCases) { pos in
+                            Text(pos.rawValue).tag(pos)
+                        }
+                    }
+                    
+                    Picker("Shape", selection: $config.cameraShape) {
+                        ForEach(CameraShape.allCases) { shape in
+                            Text(shape.rawValue).tag(shape)
+                        }
+                    }
+                    
+                    HStack {
+                        Text("Size")
+                        Slider(value: $config.cameraSize, in: 100...300, step: 10)
+                        Text(String(format: "%.0fpx", config.cameraSize))
+                            .frame(width: 45)
+                    }
+                    
+                    Toggle("Show Border", isOn: $config.enableCameraBorder)
                 }
             }
             
