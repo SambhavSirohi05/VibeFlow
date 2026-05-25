@@ -447,8 +447,16 @@ class ScreenRecorder: NSObject, ObservableObject {
                             self.transcriptionProgress = "Writing subtitles..."
                         }
                         
-                        let srtContent = SubtitleGenerator.generateSRT(from: response, style: subtitleStyle)
-                        let segments = SubtitleGenerator.generateSRTSegments(from: response, style: subtitleStyle)
+                        var videoDuration: Double? = nil
+                        if let vURL = videoURL {
+                            let asset = AVAsset(url: vURL)
+                            if let duration = try? await asset.load(.duration) {
+                                videoDuration = duration.seconds
+                            }
+                        }
+                        
+                        let srtContent = SubtitleGenerator.generateSRT(from: response, style: subtitleStyle, duration: videoDuration)
+                        let segments = SubtitleGenerator.generateSRTSegments(from: response, style: subtitleStyle, duration: videoDuration)
                         
                         if let vURL = videoURL {
                             let srtURL = vURL.deletingPathExtension().appendingPathExtension("srt")
@@ -461,6 +469,7 @@ class ScreenRecorder: NSObject, ObservableObject {
                                 _ = try await SubtitleGenerator.burnSubtitles(
                                     videoURL: vURL,
                                     segments: segments,
+                                    style: subtitleStyle,
                                     fontSize: subtitleFontSize,
                                     textColor: subtitleTextColor,
                                     bgOpacity: subtitleBgOpacity
