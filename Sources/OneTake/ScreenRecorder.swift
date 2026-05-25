@@ -686,10 +686,20 @@ extension ScreenRecorder: SCStreamOutput {
         } else {
             translatedCursorPos = rawCursorPos
         }
+        var shouldAllowZoom = true
+        storage.sessionLock.lock()
+        if storage.sessionStarted {
+            let elapsed = CMTimeGetSeconds(CMTimeSubtract(currentTime, storage.firstSampleTime))
+            if elapsed < 4.0 {
+                shouldAllowZoom = false
+            }
+        }
+        storage.sessionLock.unlock()
+        
         let focusTrigger = cursorManager.focusZoomTrigger
         
         let translatedTrigger: CursorManager.FocusZoomTrigger?
-        if let trigger = focusTrigger, let display = selectedDisplay {
+        if shouldAllowZoom, let trigger = focusTrigger, let display = selectedDisplay {
             let translatedPos = translateCursorPosition(trigger.position, for: display, frameWidth: displayWidth, frameHeight: displayHeight)
             translatedTrigger = CursorManager.FocusZoomTrigger(position: translatedPos, timestamp: trigger.timestamp, type: trigger.type)
         } else {
