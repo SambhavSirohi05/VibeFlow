@@ -147,30 +147,47 @@ struct RecorderView: View {
                         Text("Loading displays...")
                             .foregroundStyle(.secondary)
                     } else {
-                        Picker("Display", selection: $recorder.selectedDisplay) {
-                            ForEach(recorder.availableDisplays, id: \.displayID) { display in
-                                Text("Display \(display.displayID) (\(display.width)x\(display.height))")
-                                    .tag(Optional(display))
+                        Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 12) {
+                            GridRow {
+                                Text("Display")
+                                    .gridCellAnchor(.trailing)
+                                Picker("", selection: $recorder.selectedDisplay) {
+                                    ForEach(recorder.availableDisplays, id: \.displayID) { display in
+                                        Text("Display \(display.displayID) (\(display.width)x\(display.height))")
+                                            .tag(Optional(display))
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .labelsHidden()
+                                .frame(width: 220)
+                            }
+                            
+                            GridRow {
+                                Text("Audio Source")
+                                    .gridCellAnchor(.trailing)
+                                Picker("", selection: $recorder.renderConfig.audioMode) {
+                                    ForEach(AudioCaptureMode.allCases) { mode in
+                                        Text(mode.rawValue).tag(mode)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .labelsHidden()
+                                .frame(width: 220)
+                            }
+                            
+                            GridRow {
+                                Text("Resolution")
+                                    .gridCellAnchor(.trailing)
+                                Picker("", selection: $recorder.renderConfig.recordingResolution) {
+                                    ForEach(RecordingResolution.allCases) { resolution in
+                                        Text(resolution.rawValue).tag(resolution)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .labelsHidden()
+                                .frame(width: 220)
                             }
                         }
-                        .pickerStyle(.menu)
-                        .frame(width: 200)
-                        
-                        Picker("Audio Source", selection: $recorder.renderConfig.audioMode) {
-                            ForEach(AudioCaptureMode.allCases) { mode in
-                                Text(mode.rawValue).tag(mode)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .frame(width: 200)
-                        
-                        Picker("Resolution", selection: $recorder.renderConfig.recordingResolution) {
-                            ForEach(RecordingResolution.allCases) { resolution in
-                                Text(resolution.rawValue).tag(resolution)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .frame(width: 200)
                     }
                     
                     HStack(spacing: 12) {
