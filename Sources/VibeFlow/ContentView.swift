@@ -7,18 +7,39 @@ struct ContentView: View {
     @StateObject private var recorder = ScreenRecorder()
     
     var body: some View {
-        VStack(spacing: 20) {
-            Text("VibeFlow")
-                .font(.largeTitle)
-                .fontWeight(.bold)
+        ZStack {
+            VStack(spacing: 20) {
+                Text("VibeFlow")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                
+                if permissions.hasScreenRecordingPermission {
+                    RecorderView(recorder: recorder)
+                } else {
+                    PermissionRequestView(permissions: permissions)
+                }
+            }
+            .padding()
+            .disabled(recorder.isTranscribing)
             
-            if permissions.hasScreenRecordingPermission {
-                RecorderView(recorder: recorder)
-            } else {
-                PermissionRequestView(permissions: permissions)
+            if recorder.isTranscribing {
+                Color.black.opacity(0.4)
+                    .edgesIgnoringSafeArea(.all)
+                
+                VStack(spacing: 15) {
+                    ProgressView()
+                        .controlSize(.large)
+                    
+                    Text(recorder.transcriptionProgress ?? "Transcribing...")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                }
+                .padding(30)
+                .background(RoundedRectangle(cornerRadius: 12).fill(Color(NSColor.windowBackgroundColor).opacity(0.95)))
+                .shadow(radius: 15)
+                .frame(maxWidth: 300)
             }
         }
-        .padding()
         .frame(minWidth: 500, minHeight: 450)
         .onAppear {
             permissions.checkPermissions()

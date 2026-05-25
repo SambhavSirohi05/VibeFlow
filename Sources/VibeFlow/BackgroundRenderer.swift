@@ -70,6 +70,13 @@ enum CameraShape: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum SubtitleStyle: String, CaseIterable, Identifiable {
+    case wordByWord = "Word by Word"
+    case grouped = "Segment / Line"
+    
+    var id: String { rawValue }
+}
+
 struct RendererConfiguration {
     var background: BackgroundType = .gradient([.blue, .purple])
     var cornerRadius: CGFloat = 16
@@ -93,6 +100,11 @@ struct RendererConfiguration {
     var cameraSize: CGFloat = 200.0
     var enableCameraBorder: Bool = false
     
+    // Subtitle settings
+    var enableAutoSubtitles: Bool = false
+    var sarvamAPIKey: String = ""
+    var subtitleStyle: SubtitleStyle = .grouped
+    
     // For convenience in UI
     var solidColor: Color = .blue
     var gradientColors: [Color] = [Color(red: 0.2, green: 0.2, blue: 0.6), Color(red: 0.6, green: 0.2, blue: 0.4)]
@@ -113,6 +125,9 @@ struct RendererConfiguration {
         cameraShape: .circle,
         cameraSize: 200.0,
         enableCameraBorder: false,
+        enableAutoSubtitles: false,
+        sarvamAPIKey: "",
+        subtitleStyle: .grouped,
         solidColor: .blue,
         gradientColors: [Color(red: 0.2, green: 0.2, blue: 0.6), Color(red: 0.6, green: 0.2, blue: 0.4)]
     )
@@ -349,6 +364,21 @@ struct BackgroundRenderer: View {
                     }
                     
                     Toggle("Show Border", isOn: $config.enableCameraBorder)
+                }
+            }
+            
+            GroupBox(label: Text("Subtitles")) {
+                Toggle("Auto-Generate Subtitles", isOn: $config.enableAutoSubtitles)
+                
+                if config.enableAutoSubtitles {
+                    SecureField("Sarvam API Key", text: $config.sarvamAPIKey)
+                        .textFieldStyle(.roundedBorder)
+                    
+                    Picker("Subtitle Style", selection: $config.subtitleStyle) {
+                        ForEach(SubtitleStyle.allCases) { style in
+                            Text(style.rawValue).tag(style)
+                        }
+                    }
                 }
             }
             

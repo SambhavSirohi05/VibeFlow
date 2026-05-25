@@ -47,10 +47,8 @@ extension ScreenRecorder {
             let isStarted = self.storage.sessionStarted
             self.storage.sessionLock.unlock()
             
-            guard let micInput = self.storage.micInput,
-                  micInput.isReadyForMoreMediaData,
-                  let converter = converter,
-                  isStarted else { return }  // Wait for session to start!
+            guard isStarted, let converter = converter else { return }
+            guard self.storage.micInput != nil || self.storage.micWavWriter != nil else { return }
             
             // Convert to target format
             let frameCapacity = AVAudioFrameCount(Double(buffer.frameLength) * (44100.0 / inputFormat.sampleRate))
@@ -64,8 +62,22 @@ extension ScreenRecorder {
                 return buffer
             }
             
-            if error == nil, let sampleBuffer = self.createSampleBuffer(from: convertedBuffer) {
-                micInput.append(sampleBuffer)
+            if error == nil {
+                // Write to the temporary WAV file for subtitles if enabled
+                if let wavWriter = self.storage.micWavWriter {
+                    do {
+                        try wavWriter.write(from: convertedBuffer)
+                    } catch {
+                        // Failed to write wav chunk
+                    }
+                }
+                
+                // Append to asset writer if mic track is enabled in video
+                if let micInput = self.storage.micInput, micInput.isReadyForMoreMediaData {
+                    if let sampleBuffer = self.createSampleBuffer(from: convertedBuffer) {
+                        micInput.append(sampleBuffer)
+                    }
+                }
             }
         }
         

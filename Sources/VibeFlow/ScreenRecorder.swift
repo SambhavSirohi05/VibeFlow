@@ -14,6 +14,8 @@ class ScreenRecorder: NSObject, ObservableObject {
     @Published var error: Error?
     @Published var renderConfig = RendererConfiguration()
     @Published var isPreviewingSettings = false
+    @Published var isTranscribing = false
+    @Published var transcriptionProgress: String? = nil
     
     // Internal State
     private var stream: SCStream?
@@ -32,6 +34,8 @@ class ScreenRecorder: NSObject, ObservableObject {
         var cameraPanel: CameraPreviewPanel?
         var cameraPanelFrame: CGRect?
         let cameraFrameLock = NSLock()
+        var micWavWriter: AVAudioFile?
+        var micWavURL: URL?
     }
     nonisolated let storage = Storage()
     
@@ -263,7 +267,8 @@ class ScreenRecorder: NSObject, ObservableObject {
                 AVEncoderBitRateKey: 128000
             ]
             let capturesSystemAudio = (renderConfig.audioMode == .screenOnly || renderConfig.audioMode == .both)
-            let capturesMic = (renderConfig.audioMode == .micOnly || renderConfig.audioMode == .both)
+            let capturesMic = (renderConfig.audioMode == .micOnly || renderConfig.audioMode == .both || renderConfig.enableAutoSubtitles)
+            let writeMicToVideo = (renderConfig.audioMode == .micOnly || renderConfig.audioMode == .both)
             
             // Audio Input (System Audio)
             if capturesSystemAudio {
@@ -279,7 +284,7 @@ class ScreenRecorder: NSObject, ObservableObject {
             }
             
             // Microphone Input
-            if capturesMic {
+            if writeMicToVideo {
                 let micInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
                 micInput.expectsMediaDataInRealTime = true
                 storage.micInput = micInput
@@ -289,6 +294,43 @@ class ScreenRecorder: NSObject, ObservableObject {
                 }
             } else {
                 storage.micInput = nil
+            }
+            
+            // Initialize WAV file for subtitles if enabled
+            if renderConfig.enableAutoSubtitles {
+                let tempDir = FileManager.default.temporaryDirectory
+                let wavURL = tempDir.appendingPathComponent("VibeFlow-mic-\(UUID().uuidString).wav")
+                
+                if let targetFormat = AVAudioFormat(
+                    commonFormat: .pcmFormatFloat32,
+                    sampleRate: 44100,
+                    channels: 2,
+                    interleaved: false
+                ) {
+                    let diskSettings: [String: Any] = [
+                        AVFormatIDKey: kAudioFormatLinearPCM,
+                        AVSampleRateKey: 44100.0,
+                        AVNumberOfChannelsKey: 2,
+                        AVLinearPCMBitDepthKey: 32,
+                        AVLinearPCMIsFloatKey: true,
+                        AVLinearPCMIsBigEndianKey: false
+                    ]
+                    do {
+                        let wavWriter = try AVAudioFile(
+                            forWriting: wavURL,
+                            settings: diskSettings,
+                            commonFormat: targetFormat.commonFormat,
+                            interleaved: targetFormat.isInterleaved
+                        )
+                        storage.micWavWriter = wavWriter
+                        storage.micWavURL = wavURL
+                    } catch {
+                        // Ignore
+                    }
+                }
+            } else {
+                storage.micWavWriter = nil
+                storage.micWavURL = nil
             }
             
             // Start microphone capture (if enabled)
@@ -378,10 +420,73 @@ class ScreenRecorder: NSObject, ObservableObject {
             storage.videoInput?.markAsFinished()
             storage.audioInput?.markAsFinished()
             storage.micInput?.markAsFinished()
+            
+            let videoURL = storage.assetWriter?.outputURL
+            let micWavURL = storage.micWavURL
+            let enableSubtitles = renderConfig.enableAutoSubtitles
+            let apiKey = renderConfig.sarvamAPIKey
+            let subtitleStyle = renderConfig.subtitleStyle
+            
+            storage.micWavWriter = nil // Closes the file handle
+            storage.micWavURL = nil
+            
             await storage.assetWriter?.finishWriting()
             
-            if let url = storage.assetWriter?.outputURL {
-               NSWorkspace.shared.activateFileViewerSelecting([url])
+            if enableSubtitles, let wavURL = micWavURL, !apiKey.isEmpty {
+                isTranscribing = true
+                transcriptionProgress = "Uploading voice audio..."
+                
+                Task {
+                    do {
+                        let response = try await SubtitleGenerator.transcribeAudio(fileURL: wavURL, apiKey: apiKey)
+                        
+                        await MainActor.run {
+                            self.transcriptionProgress = "Writing subtitles..."
+                        }
+                        
+                        let srtContent = SubtitleGenerator.generateSRT(from: response, style: subtitleStyle)
+                        let segments = SubtitleGenerator.generateSRTSegments(from: response, style: subtitleStyle)
+                        
+                        if let vURL = videoURL {
+                            let srtURL = vURL.deletingPathExtension().appendingPathExtension("srt")
+                            try srtContent.write(to: srtURL, atomically: true, encoding: .utf8)
+                            
+                            if !segments.isEmpty {
+                                await MainActor.run {
+                                    self.transcriptionProgress = "Burning captions into video..."
+                                }
+                                _ = try await SubtitleGenerator.burnSubtitles(videoURL: vURL, segments: segments)
+                            }
+                        }
+                        
+                        try? FileManager.default.removeItem(at: wavURL)
+                        
+                        await MainActor.run {
+                            self.isTranscribing = false
+                            self.transcriptionProgress = nil
+                            if let vURL = videoURL {
+                                NSWorkspace.shared.activateFileViewerSelecting([vURL])
+                            }
+                        }
+                    } catch {
+                        await MainActor.run {
+                            self.isTranscribing = false
+                            self.transcriptionProgress = nil
+                            self.error = error
+                            try? FileManager.default.removeItem(at: wavURL)
+                            if let vURL = videoURL {
+                                NSWorkspace.shared.activateFileViewerSelecting([vURL])
+                            }
+                        }
+                    }
+                }
+            } else {
+                if let wavURL = micWavURL {
+                    try? FileManager.default.removeItem(at: wavURL)
+                }
+                if let url = videoURL {
+                   NSWorkspace.shared.activateFileViewerSelecting([url])
+                }
             }
             
             storage.assetWriter = nil
