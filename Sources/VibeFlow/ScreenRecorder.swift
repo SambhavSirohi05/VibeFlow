@@ -426,6 +426,9 @@ class ScreenRecorder: NSObject, ObservableObject {
             let enableSubtitles = renderConfig.enableAutoSubtitles
             let apiKey = renderConfig.sarvamAPIKey
             let subtitleStyle = renderConfig.subtitleStyle
+            let subtitleFontSize = renderConfig.subtitleFontSize
+            let subtitleTextColor = renderConfig.subtitleTextColor
+            let subtitleBgOpacity = renderConfig.subtitleBgOpacity
             
             storage.micWavWriter = nil // Closes the file handle
             storage.micWavURL = nil
@@ -455,7 +458,13 @@ class ScreenRecorder: NSObject, ObservableObject {
                                 await MainActor.run {
                                     self.transcriptionProgress = "Burning captions into video..."
                                 }
-                                _ = try await SubtitleGenerator.burnSubtitles(videoURL: vURL, segments: segments)
+                                _ = try await SubtitleGenerator.burnSubtitles(
+                                    videoURL: vURL,
+                                    segments: segments,
+                                    fontSize: subtitleFontSize,
+                                    textColor: subtitleTextColor,
+                                    bgOpacity: subtitleBgOpacity
+                                )
                             }
                         }
                         

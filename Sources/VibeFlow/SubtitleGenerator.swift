@@ -216,7 +216,13 @@ class SubtitleGenerator {
     // MARK: - Post-Processing Subtitle Burn-In
     
     /// Bakes parsed subtitles directly onto the video frames of the recorded file
-    static func burnSubtitles(videoURL: URL, segments: [SRTSegment]) async throws -> URL {
+    static func burnSubtitles(
+        videoURL: URL,
+        segments: [SRTSegment],
+        fontSize: SubtitleFontSize = .medium,
+        textColor: SubtitleTextColor = .white,
+        bgOpacity: Double = 0.6
+    ) async throws -> URL {
         let asset = AVAsset(url: videoURL)
         
         guard let videoTrack = try await asset.loadTracks(withMediaType: .video).first else {
@@ -235,12 +241,39 @@ class SubtitleGenerator {
         exportSession.outputURL = tempOutputURL
         exportSession.outputFileType = .mov
         
+        // Thread-safe image cache for rendered subtitles
+        let cacheLock = NSLock()
+        var imageCache: [String: CIImage] = [:]
+        
         let videoComposition = AVMutableVideoComposition(asset: asset) { request in
             let sourceImage = request.sourceImage
             let time = request.compositionTime.seconds
+            let canvasSize = sourceImage.extent.size
             
             if let activeSegment = segments.first(where: { time >= $0.startTime && time <= $0.endTime }) {
-                if let textImage = drawSubtitleImage(text: activeSegment.text, canvasSize: sourceImage.extent.size) {
+                let cacheKey = "\(activeSegment.text)_\(canvasSize.width)x\(canvasSize.height)"
+                
+                cacheLock.lock()
+                let cachedImage = imageCache[cacheKey]
+                cacheLock.unlock()
+                
+                if let cachedImage = cachedImage {
+                    let outputImage = cachedImage.composited(over: sourceImage)
+                    request.finish(with: outputImage, context: nil)
+                    return
+                }
+                
+                if let textImage = drawSubtitleImage(
+                    text: activeSegment.text,
+                    canvasSize: canvasSize,
+                    fontSize: fontSize,
+                    textColor: textColor,
+                    bgOpacity: bgOpacity
+                ) {
+                    cacheLock.lock()
+                    imageCache[cacheKey] = textImage
+                    cacheLock.unlock()
+                    
                     let outputImage = textImage.composited(over: sourceImage)
                     request.finish(with: outputImage, context: nil)
                     return
@@ -271,27 +304,36 @@ class SubtitleGenerator {
     }
     
     /// Renders text with line wrapping and a rounded black bounding box into a small overlay image
-    private static func drawSubtitleImage(text: String, canvasSize: CGSize) -> CIImage? {
+    private static func drawSubtitleImage(
+        text: String,
+        canvasSize: CGSize,
+        fontSize: SubtitleFontSize,
+        textColor: SubtitleTextColor,
+        bgOpacity: Double
+    ) -> CIImage? {
         let padding: CGFloat = 12.0
         let maxTextWidth = canvasSize.width * 0.8
-        let fontSize = max(24.0, canvasSize.height * 0.038)
+        let actualFontSize = fontSize.size(for: canvasSize.height)
         
-        let font = NSFont.systemFont(ofSize: fontSize, weight: .semibold)
+        let font = NSFont.systemFont(ofSize: actualFontSize, weight: .semibold)
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.alignment = .center
         paragraphStyle.lineBreakMode = .byWordWrapping
         
         let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
-            .foregroundColor: NSColor.white,
+            .foregroundColor: textColor.color,
             .paragraphStyle: paragraphStyle
         ]
         
         let constraintSize = CGSize(width: maxTextWidth, height: CGFloat.greatestFiniteMagnitude)
         let textRect = text.boundingRect(with: constraintSize, options: .usesLineFragmentOrigin, attributes: attributes, context: nil)
         
-        let boxWidth = textRect.width + padding * 2
-        let boxHeight = textRect.height + padding * 2
+        let textWidth = ceil(textRect.width)
+        let textHeight = ceil(textRect.height)
+        
+        let boxWidth = textWidth + padding * 2
+        let boxHeight = textHeight + padding * 2
         
         guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
               let context = CGContext(
@@ -313,15 +355,15 @@ class SubtitleGenerator {
         // Draw black background pill/box
         let boxRect = CGRect(x: 0, y: 0, width: boxWidth, height: boxHeight)
         let path = NSBezierPath(roundedRect: boxRect, xRadius: 8, yRadius: 8)
-        NSColor.black.withAlphaComponent(0.6).setFill()
+        NSColor.black.withAlphaComponent(bgOpacity).setFill()
         path.fill()
         
         // Render text Centered
         let textDrawRect = CGRect(
             x: padding,
             y: padding,
-            width: textRect.width,
-            height: textRect.height
+            width: textWidth,
+            height: textHeight
         )
         text.draw(in: textDrawRect, withAttributes: attributes)
         

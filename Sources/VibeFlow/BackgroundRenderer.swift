@@ -77,6 +77,49 @@ enum SubtitleStyle: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum SubtitleFontSize: String, CaseIterable, Identifiable {
+    case small = "Small"
+    case medium = "Medium"
+    case large = "Large"
+    
+    var id: String { rawValue }
+    
+    func size(for canvasHeight: CGFloat) -> CGFloat {
+        switch self {
+        case .small: return max(18.0, canvasHeight * 0.028)
+        case .medium: return max(26.0, canvasHeight * 0.038)
+        case .large: return max(34.0, canvasHeight * 0.05)
+        }
+    }
+}
+
+enum SubtitleTextColor: String, CaseIterable, Identifiable {
+    case white = "White"
+    case yellow = "Yellow"
+    case cyan = "Cyan"
+    case green = "Green"
+    
+    var id: String { rawValue }
+    
+    var color: NSColor {
+        switch self {
+        case .white: return .white
+        case .yellow: return NSColor(red: 0.98, green: 0.9, blue: 0.15, alpha: 1.0)
+        case .cyan: return NSColor(red: 0.15, green: 0.85, blue: 0.98, alpha: 1.0)
+        case .green: return NSColor(red: 0.2, green: 0.9, blue: 0.4, alpha: 1.0)
+        }
+    }
+    
+    var swiftUIColor: Color {
+        switch self {
+        case .white: return .white
+        case .yellow: return Color(red: 0.98, green: 0.9, blue: 0.15)
+        case .cyan: return Color(red: 0.15, green: 0.85, blue: 0.98)
+        case .green: return Color(red: 0.2, green: 0.9, blue: 0.4)
+        }
+    }
+}
+
 struct RendererConfiguration {
     var background: BackgroundType = .gradient([.blue, .purple])
     var cornerRadius: CGFloat = 16
@@ -104,6 +147,9 @@ struct RendererConfiguration {
     var enableAutoSubtitles: Bool = false
     var sarvamAPIKey: String = ""
     var subtitleStyle: SubtitleStyle = .grouped
+    var subtitleFontSize: SubtitleFontSize = .medium
+    var subtitleTextColor: SubtitleTextColor = .white
+    var subtitleBgOpacity: Double = 0.6
     
     // For convenience in UI
     var solidColor: Color = .blue
@@ -128,6 +174,9 @@ struct RendererConfiguration {
         enableAutoSubtitles: false,
         sarvamAPIKey: "",
         subtitleStyle: .grouped,
+        subtitleFontSize: .medium,
+        subtitleTextColor: .white,
+        subtitleBgOpacity: 0.6,
         solidColor: .blue,
         gradientColors: [Color(red: 0.2, green: 0.2, blue: 0.6), Color(red: 0.6, green: 0.2, blue: 0.4)]
     )
@@ -160,6 +209,16 @@ struct LayoutPreview: View {
                     )
                     .shadow(color: Color.black.opacity(0.3), radius: config.shadowRadius / 4, x: 0, y: 2)
                     .padding(config.padding / 4) // Scale down padding for preview
+                
+                // Camera bubble preview (inside ZStack, positioned appropriately)
+                if config.enableCamera {
+                    cameraPreviewBubble
+                }
+                
+                // Subtitle capsule preview
+                if config.enableAutoSubtitles {
+                    subtitlePreviewPill
+                }
             }
         }
         .frame(height: 120)
@@ -168,6 +227,78 @@ struct LayoutPreview: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(Color.gray.opacity(0.3), lineWidth: 1)
         )
+    }
+    
+    private var cameraPreviewBubble: some View {
+        let bubbleSize: CGFloat = config.cameraSize / 5.0
+        let margin = max(6.0, config.padding / 4.0)
+        
+        return Group {
+            if config.cameraShape == .circle {
+                Circle()
+                    .fill(Color.gray.opacity(0.8))
+                    .overlay(
+                        Image(systemName: "person.fill")
+                            .foregroundColor(.white)
+                            .font(.system(size: bubbleSize * 0.4))
+                    )
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white, lineWidth: config.enableCameraBorder ? 1.0 : 0.0)
+                    )
+                    .frame(width: bubbleSize, height: bubbleSize)
+                    .shadow(radius: 2)
+            } else {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.gray.opacity(0.8))
+                    .overlay(
+                        Image(systemName: "person.fill")
+                            .foregroundColor(.white)
+                            .font(.system(size: bubbleSize * 0.4))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color.white, lineWidth: config.enableCameraBorder ? 1.0 : 0.0)
+                    )
+                    .frame(width: bubbleSize, height: bubbleSize * 0.75)
+                    .shadow(radius: 2)
+            }
+        }
+        .padding(margin)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: previewAlignment(for: config.cameraPosition))
+    }
+    
+    private func previewAlignment(for position: CameraPosition) -> Alignment {
+        switch position {
+        case .topLeft: return .topLeading
+        case .topRight: return .topTrailing
+        case .bottomLeft: return .bottomLeading
+        case .bottomRight: return .bottomTrailing
+        }
+    }
+    
+    private var subtitlePreviewPill: some View {
+        let fontSize: CGFloat = {
+            switch config.subtitleFontSize {
+            case .small: return 7
+            case .medium: return 9
+            case .large: return 11
+            }
+        }()
+        
+        let text = config.subtitleStyle == .wordByWord ? "Subtitles" : "Aesthetic Captions Active"
+        
+        return Text(text)
+            .font(.system(size: fontSize, weight: .semibold))
+            .foregroundColor(config.subtitleTextColor.swiftUIColor)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.black.opacity(config.subtitleBgOpacity))
+            )
+            .padding(.bottom, 6)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
     
     @ViewBuilder
@@ -374,11 +505,34 @@ struct BackgroundRenderer: View {
                     SecureField("Sarvam API Key", text: $config.sarvamAPIKey)
                         .textFieldStyle(.roundedBorder)
                     
-                    Picker("Subtitle Style", selection: $config.subtitleStyle) {
+                    Picker("Style Mode", selection: $config.subtitleStyle) {
                         ForEach(SubtitleStyle.allCases) { style in
                             Text(style.rawValue).tag(style)
                         }
                     }
+                    
+                    Picker("Font Size", selection: $config.subtitleFontSize) {
+                        ForEach(SubtitleFontSize.allCases) { size in
+                            Text(size.rawValue).tag(size)
+                        }
+                    }
+                    
+                    Picker("Text Color", selection: $config.subtitleTextColor) {
+                        ForEach(SubtitleTextColor.allCases) { color in
+                            Text(color.rawValue).tag(color)
+                        }
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("Background Opacity")
+                            Spacer()
+                            Text(String(format: "%.0f%%", config.subtitleBgOpacity * 100))
+                                .foregroundColor(.secondary)
+                        }
+                        Slider(value: $config.subtitleBgOpacity, in: 0.0...1.0, step: 0.1)
+                    }
+                    .padding(.top, 4)
                 }
             }
             
