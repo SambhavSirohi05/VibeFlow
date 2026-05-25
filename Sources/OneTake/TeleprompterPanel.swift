@@ -218,14 +218,18 @@ struct TeleprompterTextView: NSViewRepresentable {
                 let contentView = scrollView.contentView
                 let maxScrollY = documentView.frame.height - contentView.bounds.height
                 
-                if self.scrollOffset < maxScrollY {
-                    self.scrollOffset += delta
-                    contentView.setBoundsOrigin(NSPoint(x: 0, y: self.scrollOffset))
-                    scrollView.reflectScrolledClipView(contentView)
-                } else {
-                    self.stopTimer()
-                    DispatchQueue.main.async {
-                        self.parent.isScrolling = false
+                // Only scroll and perform boundary checks if the document is actually scrollable.
+                // If maxScrollY <= 0, it means layout is either incomplete or the text fully fits in the viewport.
+                if maxScrollY > 0 {
+                    if self.scrollOffset < maxScrollY {
+                        self.scrollOffset += delta
+                        contentView.setBoundsOrigin(NSPoint(x: 0, y: self.scrollOffset))
+                        scrollView.reflectScrolledClipView(contentView)
+                    } else {
+                        self.stopTimer()
+                        DispatchQueue.main.async {
+                            self.parent.isScrolling = false
+                        }
                     }
                 }
             }
