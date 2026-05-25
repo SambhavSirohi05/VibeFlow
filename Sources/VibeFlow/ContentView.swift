@@ -153,6 +153,7 @@ struct RecorderView: View {
                     }
                     
                     Button("Layout Settings") {
+                        recorder.isPreviewingSettings = true
                         showSettings = true
                     }
                     .buttonStyle(.bordered)
@@ -173,13 +174,16 @@ struct RecorderView: View {
              // It's fine.
             await recorder.fetchAvailableContent()
         }
-        .sheet(isPresented: $showSettings) {
+        .sheet(isPresented: $showSettings, onDismiss: {
+            recorder.isPreviewingSettings = false
+        }) {
              VStack(spacing: 0) {
                  HStack {
                      Text("Layout Settings")
                          .font(.headline)
                      Spacer()
                      Button("Done") {
+                         recorder.isPreviewingSettings = false
                          showSettings = false
                      }
                  }

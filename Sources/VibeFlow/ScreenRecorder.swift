@@ -13,6 +13,7 @@ class ScreenRecorder: NSObject, ObservableObject {
     @Published var selectedDisplay: SCDisplay?
     @Published var error: Error?
     @Published var renderConfig = RendererConfiguration()
+    @Published var isPreviewingSettings = false
     
     // Internal State
     private var stream: SCStream?
@@ -49,11 +50,11 @@ class ScreenRecorder: NSObject, ObservableObject {
     override init() {
         super.init()
         
-        Publishers.CombineLatest($renderConfig, $isRecording)
+        Publishers.CombineLatest3($renderConfig, $isRecording, $isPreviewingSettings)
             .receive(on: RunLoop.main)
-            .sink { [weak self] newConfig, isRecording in
+            .sink { [weak self] newConfig, isRecording, isPreviewing in
                 guard let self = self else { return }
-                self.updateCameraState(newConfig: newConfig, isRecording: isRecording)
+                self.updateCameraState(newConfig: newConfig, isRecording: isRecording, isPreviewing: isPreviewing)
             }
             .store(in: &cancellables)
     }
@@ -66,7 +67,7 @@ class ScreenRecorder: NSObject, ObservableObject {
     }
     
     private func positionCameraPanel(panel: CameraPreviewPanel, config: RendererConfiguration) {
-        guard let mainScreen = NSScreen.main else { return }
+        guard let mainScreen = NSScreen.main ?? NSScreen.screens.first else { return }
         let screenFrame = mainScreen.visibleFrame
         let size = config.cameraSize * 1.6
         
@@ -91,8 +92,8 @@ class ScreenRecorder: NSObject, ObservableObject {
         panel.setFrame(NSRect(x: x, y: y, width: size, height: size), display: true)
     }
     
-    private func updateCameraState(newConfig: RendererConfiguration, isRecording: Bool) {
-        let shouldShowCamera = isRecording && newConfig.enableCamera
+    private func updateCameraState(newConfig: RendererConfiguration, isRecording: Bool, isPreviewing: Bool) {
+        let shouldShowCamera = (isRecording || isPreviewing) && newConfig.enableCamera
         
         if shouldShowCamera {
             cameraManager.start()
@@ -118,6 +119,7 @@ class ScreenRecorder: NSObject, ObservableObject {
                 self.lastCameraPosition = newConfig.cameraPosition
                 
                 panel.orderFront(nil)
+                excludeCameraPanelFromCapture()
             } else if let panel = storage.cameraPanel {
                 if positionChanged {
                     positionCameraPanel(panel: panel, config: newConfig)
@@ -156,6 +158,8 @@ class ScreenRecorder: NSObject, ObservableObject {
                 storage.cameraFrameLock.lock()
                 storage.cameraPanelFrame = panel.frame
                 storage.cameraFrameLock.unlock()
+                
+                excludeCameraPanelFromCapture()
             }
         } else {
             if storage.cameraPanel != nil {
@@ -168,6 +172,25 @@ class ScreenRecorder: NSObject, ObservableObject {
                 storage.cameraFrameLock.unlock()
             }
             self.lastCameraPosition = nil
+        }
+    }
+    
+    private func excludeCameraPanelFromCapture() {
+        guard let stream = stream, let panel = storage.cameraPanel else { return }
+        Task {
+            do {
+                let content = try await SCShareableContent.current
+                let panelWindowNumber = panel.windowNumber
+                if panelWindowNumber > 0 {
+                    let matching = content.windows.filter { $0.windowID == CGWindowID(panelWindowNumber) }
+                    if let display = self.selectedDisplay {
+                        let filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: matching)
+                        try await stream.updateContentFilter(filter)
+                    }
+                }
+            } catch {
+                // Ignore
+            }
         }
     }
     

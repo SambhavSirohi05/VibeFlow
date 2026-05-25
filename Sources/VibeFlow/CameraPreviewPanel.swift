@@ -67,6 +67,7 @@ struct CameraPreviewBubbleView: View {
     
     @State private var isHovered = false
     @State private var dragStartLocation: CGPoint? = nil
+    @State private var mouseStartLocation: CGPoint = .zero
     
     var body: some View {
         GeometryReader { geometry in
@@ -87,20 +88,22 @@ struct CameraPreviewBubbleView: View {
                     .onHover { hovering in
                         isHovered = hovering
                     }
-                    // Draggable gesture
+                    // Draggable gesture using global screen mouse coordinates for maximum drag fluidity
                     .gesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { value in
+                                let currentMouse = NSEvent.mouseLocation
                                 if dragStartLocation == nil {
                                     if let currentWindow = panel {
                                         dragStartLocation = currentWindow.frame.origin
+                                        mouseStartLocation = currentMouse
                                     }
                                 }
                                 
                                 if let startOrigin = dragStartLocation, let window = panel {
-                                    let newX = startOrigin.x + value.translation.width
-                                    let newY = startOrigin.y - value.translation.height // Y is inverted in macOS screen space
-                                    window.setFrameOrigin(CGPoint(x: newX, y: newY))
+                                    let dx = currentMouse.x - mouseStartLocation.x
+                                    let dy = currentMouse.y - mouseStartLocation.y
+                                    window.setFrameOrigin(CGPoint(x: startOrigin.x + dx, y: startOrigin.y + dy))
                                     onMove(window.frame)
                                 }
                             }
