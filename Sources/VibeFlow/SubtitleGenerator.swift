@@ -8,7 +8,7 @@ class SubtitleGenerator {
         let transcript: String?
         let languageCode: String?
         let modelVersion: String?
-        let timestamps: [SarvamTimestamp]?
+        let timestamps: SarvamTimestamps?
         
         enum CodingKeys: String, CodingKey {
             case transcript
@@ -18,16 +18,22 @@ class SubtitleGenerator {
         }
     }
 
-    struct SarvamTimestamp: Decodable {
-        let word: String
-        let startTimeSeconds: Double
-        let endTimeSeconds: Double
+    struct SarvamTimestamps: Decodable {
+        let words: [String]?
+        let startTimeSeconds: [Double]?
+        let endTimeSeconds: [Double]?
         
         enum CodingKeys: String, CodingKey {
-            case word
+            case words
             case startTimeSeconds = "start_time_seconds"
             case endTimeSeconds = "end_time_seconds"
         }
+    }
+
+    struct SarvamTimestamp {
+        let word: String
+        let startTimeSeconds: Double
+        let endTimeSeconds: Double
     }
     
     struct SRTSegment {
@@ -92,7 +98,25 @@ class SubtitleGenerator {
     
     /// Converts Sarvam timestamps into a standard SRT subtitle string
     static func generateSRT(from response: SarvamResponse, style: SubtitleStyle) -> String {
-        guard let timestamps = response.timestamps, !timestamps.isEmpty else {
+        // Reconstruct flat timestamp array from parallel arrays returned by the API
+        var reconstructedTimestamps: [SarvamTimestamp] = []
+        if let ts = response.timestamps,
+           let words = ts.words,
+           let starts = ts.startTimeSeconds,
+           let ends = ts.endTimeSeconds {
+            let count = min(words.count, min(starts.count, ends.count))
+            for i in 0..<count {
+                reconstructedTimestamps.append(
+                    SarvamTimestamp(
+                        word: words[i],
+                        startTimeSeconds: starts[i],
+                        endTimeSeconds: ends[i]
+                    )
+                )
+            }
+        }
+        
+        guard !reconstructedTimestamps.isEmpty else {
             // Fallback: entire transcript as a single block if no timestamps are present
             if let transcript = response.transcript, !transcript.isEmpty {
                 let segment = SRTSegment(index: 1, startTime: 0.0, endTime: 5.0, text: transcript)
@@ -105,7 +129,7 @@ class SubtitleGenerator {
         
         switch style {
         case .wordByWord:
-            for (i, wordInfo) in timestamps.enumerated() {
+            for (i, wordInfo) in reconstructedTimestamps.enumerated() {
                 let segment = SRTSegment(
                     index: i + 1,
                     startTime: wordInfo.startTimeSeconds,
@@ -125,7 +149,7 @@ class SubtitleGenerator {
             let maxDuration = 3.0 // seconds
             let maxSilenceGap = 1.2 // seconds
             
-            for wordInfo in timestamps {
+            for wordInfo in reconstructedTimestamps {
                 let wordStart = wordInfo.startTimeSeconds
                 let wordEnd = wordInfo.endTimeSeconds
                 let word = wordInfo.word
