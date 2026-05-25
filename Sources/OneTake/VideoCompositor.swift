@@ -180,6 +180,9 @@ class VideoCompositor {
             let cameraHeight = cameraImage.extent.height
             
             if cameraWidth > 0 && cameraHeight > 0 {
+                let scaleFactor = displayFrame.width > 0 ? (contentWidth / displayFrame.width) : 1.0
+                let baseCameraSize = config.cameraSize * scaleFactor
+                
                 let targetWidth: CGFloat
                 let targetHeight: CGFloat
                 let scaledImage: CIImage
@@ -187,8 +190,8 @@ class VideoCompositor {
                 
                 switch config.cameraShape {
                 case .circle:
-                    targetWidth = config.cameraSize
-                    targetHeight = config.cameraSize
+                    targetWidth = baseCameraSize
+                    targetHeight = baseCameraSize
                     radius = targetWidth / 2
                     
                     let cropSide = min(cameraWidth, cameraHeight)
@@ -202,9 +205,9 @@ class VideoCompositor {
                     scaledImage = translatedImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
                     
                 case .roundedRectangle:
-                    targetWidth = config.cameraSize
-                    targetHeight = config.cameraSize * (cameraHeight / cameraWidth)
-                    radius = 16.0
+                    targetWidth = baseCameraSize
+                    targetHeight = baseCameraSize * (cameraHeight / cameraWidth)
+                    radius = 16.0 * scaleFactor
                     
                     let scaleX = targetWidth / cameraWidth
                     let scaleY = targetHeight / cameraHeight
@@ -225,7 +228,8 @@ class VideoCompositor {
                     ])?.outputImage {
                         
                         // Add border (optional)
-                        let borderWidth = config.enableCameraBorder ? CGFloat(3.0) : CGFloat(0.0)
+                        let scaleFactor = displayFrame.width > 0 ? (contentWidth / displayFrame.width) : 1.0
+                        let borderWidth = config.enableCameraBorder ? CGFloat(3.0) * scaleFactor : CGFloat(0.0)
                         let borderSize = CGSize(width: targetWidth + 2 * borderWidth, height: targetHeight + 2 * borderWidth)
                         let borderRadius = radius + borderWidth
                         
@@ -279,9 +283,10 @@ class VideoCompositor {
                             "inputColor": CIColor.black
                         ])?.outputImage {
                             
+                            let scaleFactor = displayFrame.width > 0 ? (contentWidth / displayFrame.width) : 1.0
                             if let shadowImage = CIFilter(name: "CIGaussianBlur", parameters: [
                                 "inputImage": shadowBase,
-                                "inputRadius": CGFloat(10.0)
+                                "inputRadius": CGFloat(10.0) * scaleFactor
                             ])?.outputImage {
                                 
                                 let shadowOffset = CGAffineTransform(translationX: 0, y: -4)
