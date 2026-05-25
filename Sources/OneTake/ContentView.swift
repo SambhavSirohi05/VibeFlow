@@ -139,59 +139,173 @@ struct RecorderView: View {
                     .controlSize(.large)
                 }
             } else {
-                VStack(spacing: 15) {
-                    Text("Ready to Record")
-                        .font(.title2)
+                VStack(spacing: 20) {
+                    VStack(spacing: 6) {
+                        Text("Ready to Record")
+                            .font(.title3)
+                            .foregroundColor(.secondary)
+                    }
                     
                     if recorder.availableDisplays.isEmpty {
                         Text("Loading displays...")
                             .foregroundStyle(.secondary)
+                            .frame(height: 120)
                     } else {
-                        Form {
-                            Picker("Display", selection: $recorder.selectedDisplay) {
-                                ForEach(recorder.availableDisplays, id: \.displayID) { display in
-                                    Text("Display \(display.displayID) (\(display.width)x\(display.height))")
-                                        .tag(Optional(display))
+                        Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 12) {
+                            GridRow {
+                                Text("Display")
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                                    .gridCellAnchor(.trailing)
+                                
+                                Menu {
+                                    ForEach(recorder.availableDisplays, id: \.displayID) { display in
+                                        Button("Display \(display.displayID) (\(display.width)x\(display.height))") {
+                                            recorder.selectedDisplay = display
+                                        }
+                                    }
+                                } label: {
+                                    HStack {
+                                        Text(recorder.selectedDisplay.map { "Display \($0.displayID) (\($0.width)x\($0.height))" } ?? "Select Display")
+                                            .foregroundColor(.white)
+                                        Spacer()
+                                        Image(systemName: "chevron.up.chevron.down")
+                                            .foregroundColor(.blue)
+                                            .font(.caption)
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.08)))
                                 }
+                                .menuStyle(.button)
+                                .buttonStyle(.plain)
+                                .frame(width: 270)
                             }
-                            .pickerStyle(.menu)
                             
-                            Picker("Audio Source", selection: $recorder.renderConfig.audioMode) {
-                                ForEach(AudioCaptureMode.allCases) { mode in
-                                    Text(mode.rawValue).tag(mode)
+                            GridRow {
+                                Text("Audio Source")
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                                    .gridCellAnchor(.trailing)
+                                
+                                Menu {
+                                    ForEach(AudioCaptureMode.allCases) { mode in
+                                        Button(mode.rawValue) {
+                                            recorder.renderConfig.audioMode = mode
+                                        }
+                                    }
+                                } label: {
+                                    HStack {
+                                        Text(recorder.renderConfig.audioMode.rawValue)
+                                            .foregroundColor(.white)
+                                        Spacer()
+                                        Image(systemName: "chevron.up.chevron.down")
+                                            .foregroundColor(.blue)
+                                            .font(.caption)
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.08)))
                                 }
+                                .menuStyle(.button)
+                                .buttonStyle(.plain)
+                                .frame(width: 270)
                             }
-                            .pickerStyle(.menu)
                             
-                            Picker("Resolution", selection: $recorder.renderConfig.recordingResolution) {
-                                ForEach(RecordingResolution.allCases) { resolution in
-                                    Text(resolution.rawValue).tag(resolution)
+                            GridRow {
+                                Text("Resolution")
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                                    .gridCellAnchor(.trailing)
+                                
+                                Menu {
+                                    ForEach(RecordingResolution.allCases) { resolution in
+                                        Button(resolution.rawValue) {
+                                            recorder.renderConfig.recordingResolution = resolution
+                                        }
+                                    }
+                                } label: {
+                                    HStack {
+                                        Text(recorder.renderConfig.recordingResolution.rawValue)
+                                            .foregroundColor(.white)
+                                        Spacer()
+                                        Image(systemName: "chevron.up.chevron.down")
+                                            .foregroundColor(.blue)
+                                            .font(.caption)
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.08)))
                                 }
+                                .menuStyle(.button)
+                                .buttonStyle(.plain)
+                                .frame(width: 270)
                             }
-                            .pickerStyle(.menu)
                         }
                         .frame(width: 380)
                     }
                     
-                    HStack(spacing: 12) {
-                        Button(recorder.renderConfig.enableTeleprompter ? "Hide Script" : "Show Script") {
-                            recorder.renderConfig.enableTeleprompter.toggle()
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(recorder.renderConfig.enableTeleprompter ? .orange : .secondary)
+                    VStack(spacing: 0) {
+                        Divider()
+                            .background(Color.white.opacity(0.12))
                         
-                        Button("Layout Settings") {
+                        Button(action: {
+                            recorder.renderConfig.enableTeleprompter.toggle()
+                        }) {
+                            HStack {
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.secondary)
+                                    .rotationEffect(recorder.renderConfig.enableTeleprompter ? .degrees(90) : .zero)
+                                    .animation(.spring(response: 0.2, dampingFraction: 0.8), value: recorder.renderConfig.enableTeleprompter)
+                                Text(recorder.renderConfig.enableTeleprompter ? "Hide Script" : "Show Script")
+                                    .font(.body)
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
+                            .padding(.vertical, 14)
+                        }
+                        .buttonStyle(.plain)
+                        
+                        Divider()
+                            .background(Color.white.opacity(0.12))
+                        
+                        Button(action: {
                             recorder.isPreviewingSettings = true
                             showSettings = true
+                        }) {
+                            HStack {
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.secondary)
+                                Text("Layout Settings")
+                                    .font(.body)
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
+                            .padding(.vertical, 14)
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.plain)
+                        
+                        Divider()
+                            .background(Color.white.opacity(0.12))
                     }
+                    .frame(width: 380)
+                    .padding(.vertical, 8)
                     
-                    Button("Start Recording") {
+                    Button(action: {
                         Task { await recorder.start() }
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "record.circle")
+                                .font(.title3)
+                            Text("Start Recording")
+                                .fontWeight(.semibold)
+                        }
+                        .frame(width: 240, height: 38)
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(6)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+                    .buttonStyle(.plain)
                     .disabled(recorder.selectedDisplay == nil)
                 }
             }
