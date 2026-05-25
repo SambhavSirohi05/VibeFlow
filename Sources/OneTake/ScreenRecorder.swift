@@ -34,6 +34,7 @@ class ScreenRecorder: NSObject, ObservableObject {
         var cameraPanel: CameraPreviewPanel?
         var cameraPanelFrame: CGRect?
         let cameraFrameLock = NSLock()
+        var teleprompterPanel: NSPanel?
         var micWavWriter: AVAudioFile?
         var micWavURL: URL?
     }
@@ -51,6 +52,8 @@ class ScreenRecorder: NSObject, ObservableObject {
     
     private var lastCameraPosition: CameraPosition?
 
+    @Published var teleprompterResetOffset = false
+
     override init() {
         super.init()
         
@@ -61,12 +64,22 @@ class ScreenRecorder: NSObject, ObservableObject {
                 self.updateCameraState(newConfig: newConfig, isRecording: isRecording, isPreviewing: isPreviewing)
             }
             .store(in: &cancellables)
+            
+        $renderConfig
+            .receive(on: RunLoop.main)
+            .sink { [weak self] newConfig in
+                guard let self = self else { return }
+                self.updateTeleprompterState(newConfig: newConfig)
+            }
+            .store(in: &cancellables)
     }
     
     deinit {
         let panel = storage.cameraPanel
+        let teleprompter = storage.teleprompterPanel
         DispatchQueue.main.async {
             panel?.orderOut(nil)
+            teleprompter?.orderOut(nil)
         }
     }
     
@@ -123,7 +136,7 @@ class ScreenRecorder: NSObject, ObservableObject {
                 self.lastCameraPosition = newConfig.cameraPosition
                 
                 panel.orderFront(nil)
-                excludeCameraPanelFromCapture()
+                excludePanelsFromCapture()
             } else if let panel = storage.cameraPanel {
                 if positionChanged {
                     positionCameraPanel(panel: panel, config: newConfig)
@@ -163,7 +176,7 @@ class ScreenRecorder: NSObject, ObservableObject {
                 storage.cameraPanelFrame = panel.frame
                 storage.cameraFrameLock.unlock()
                 
-                excludeCameraPanelFromCapture()
+                excludePanelsFromCapture()
             }
         } else {
             if storage.cameraPanel != nil {
@@ -179,18 +192,62 @@ class ScreenRecorder: NSObject, ObservableObject {
         }
     }
     
-    private func excludeCameraPanelFromCapture() {
-        guard let stream = stream, let panel = storage.cameraPanel else { return }
+    private func updateTeleprompterState(newConfig: RendererConfiguration) {
+        let shouldShow = newConfig.enableTeleprompter
+        
+        if shouldShow {
+            if storage.teleprompterPanel == nil {
+                let configBinding = Binding<RendererConfiguration>(
+                    get: { [weak self] in self?.renderConfig ?? RendererConfiguration() },
+                    set: { [weak self] in self?.renderConfig = $0 }
+                )
+                
+                let resetBinding = Binding<Bool>(
+                    get: { [weak self] in self?.teleprompterResetOffset ?? false },
+                    set: { [weak self] in self?.teleprompterResetOffset = $0 }
+                )
+                
+                let panel = TeleprompterPanel(
+                    config: configBinding,
+                    resetOffset: resetBinding,
+                    onClose: { [weak self] in
+                        guard let self = self else { return }
+                        self.renderConfig.enableTeleprompter = false
+                    }
+                )
+                storage.teleprompterPanel = panel
+                panel.orderFront(nil)
+                excludePanelsFromCapture()
+            }
+        } else {
+            if let panel = storage.teleprompterPanel {
+                panel.orderOut(nil)
+                storage.teleprompterPanel = nil
+                excludePanelsFromCapture()
+            }
+        }
+    }
+    
+    private func excludePanelsFromCapture() {
+        guard let stream = stream else { return }
         Task {
             do {
                 let content = try await SCShareableContent.current
-                let panelWindowNumber = panel.windowNumber
-                if panelWindowNumber > 0 {
-                    let matching = content.windows.filter { $0.windowID == CGWindowID(panelWindowNumber) }
-                    if let display = self.selectedDisplay {
-                        let filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: matching)
-                        try await stream.updateContentFilter(filter)
-                    }
+                var excludedWindows: [SCWindow] = []
+                
+                if let cameraPanel = storage.cameraPanel, cameraPanel.windowNumber > 0 {
+                    let matching = content.windows.filter { $0.windowID == CGWindowID(cameraPanel.windowNumber) }
+                    excludedWindows.append(contentsOf: matching)
+                }
+                
+                if let teleprompterPanel = storage.teleprompterPanel, teleprompterPanel.windowNumber > 0 {
+                    let matching = content.windows.filter { $0.windowID == CGWindowID(teleprompterPanel.windowNumber) }
+                    excludedWindows.append(contentsOf: matching)
+                }
+                
+                if let display = self.selectedDisplay {
+                    let filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: excludedWindows)
+                    try await stream.updateContentFilter(filter)
                 }
             } catch {
                 // Ignore
@@ -213,6 +270,11 @@ class ScreenRecorder: NSObject, ObservableObject {
     func startRecording() async {
         guard let display = selectedDisplay else {
             return
+        }
+        
+        if renderConfig.enableTeleprompter {
+            renderConfig.isTeleprompterScrolling = false
+            teleprompterResetOffset = true
         }
         
         let saveDir = renderConfig.outputDirectory ?? FileManager.default.temporaryDirectory
@@ -354,17 +416,20 @@ class ScreenRecorder: NSObject, ObservableObject {
             return
         }
         
-        // Exclude the camera panel window from the recording
+        // Exclude camera and teleprompter panels from the recording
         var excludedWindows: [SCWindow] = []
         do {
             let content = try await SCShareableContent.current
-            let panelWindowNumber = storage.cameraPanel?.windowNumber ?? 0
-            if panelWindowNumber > 0 {
-                let matching = content.windows.filter { $0.windowID == CGWindowID(panelWindowNumber) }
+            if let cameraPanel = storage.cameraPanel, cameraPanel.windowNumber > 0 {
+                let matching = content.windows.filter { $0.windowID == CGWindowID(cameraPanel.windowNumber) }
+                excludedWindows.append(contentsOf: matching)
+            }
+            if let teleprompterPanel = storage.teleprompterPanel, teleprompterPanel.windowNumber > 0 {
+                let matching = content.windows.filter { $0.windowID == CGWindowID(teleprompterPanel.windowNumber) }
                 excludedWindows.append(contentsOf: matching)
             }
         } catch {
-            // Ignore failure to fetch windows
+            // Ignore
         }
         
         // SCStream Configuration - use recording resolution
@@ -402,6 +467,18 @@ class ScreenRecorder: NSObject, ObservableObject {
             self.stream = stream
             isRecording = true
             error = nil
+            
+            // Teleprompter 3-second auto-start delay
+            if renderConfig.enableTeleprompter {
+                Task {
+                    try? await Task.sleep(for: .seconds(3))
+                    await MainActor.run {
+                        if self.isRecording && self.renderConfig.enableTeleprompter {
+                            self.renderConfig.isTeleprompterScrolling = true
+                        }
+                    }
+                }
+            }
         } catch {
             self.error = error
             isRecording = false
@@ -409,6 +486,10 @@ class ScreenRecorder: NSObject, ObservableObject {
     }
     
     func stopRecording() async {
+        if renderConfig.enableTeleprompter {
+            renderConfig.isTeleprompterScrolling = false
+        }
+        
         do {
             try await stream?.stopCapture()
             stream = nil
