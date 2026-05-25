@@ -6,9 +6,8 @@ import AVFoundation
 struct CameraPreviewView: NSViewRepresentable {
     let session: AVCaptureSession
     
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        view.wantsLayer = true
+    func makeNSView(context: Context) -> PreviewNSView {
+        let view = PreviewNSView()
         
         let previewLayer = AVCaptureVideoPreviewLayer(session: session)
         previewLayer.videoGravity = .resizeAspectFill
@@ -19,23 +18,39 @@ struct CameraPreviewView: NSViewRepresentable {
             connection.isVideoMirrored = true
         }
         
-        view.layer?.addSublayer(previewLayer)
-        context.coordinator.previewLayer = previewLayer
-        
+        view.previewLayer = previewLayer
         return view
     }
     
-    func updateNSView(_ nsView: NSView, context: Context) {
-        nsView.layer?.frame = nsView.bounds
-        context.coordinator.previewLayer?.frame = nsView.bounds
+    func updateNSView(_ nsView: PreviewNSView, context: Context) {
+        // Handled by PreviewNSView's layout()
+    }
+}
+
+class PreviewNSView: NSView {
+    var previewLayer: AVCaptureVideoPreviewLayer? {
+        didSet {
+            oldValue?.removeFromSuperlayer()
+            if let layer = previewLayer {
+                self.layer?.addSublayer(layer)
+                layer.frame = self.bounds
+            }
+        }
     }
     
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        self.wantsLayer = true
+        self.layer?.backgroundColor = NSColor.clear.cgColor
     }
     
-    class Coordinator {
-        var previewLayer: AVCaptureVideoPreviewLayer?
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    override func layout() {
+        super.layout()
+        previewLayer?.frame = self.bounds
     }
 }
 
@@ -51,7 +66,7 @@ struct CameraPreviewBubbleView: View {
     let onMove: (CGRect) -> Void
     
     @State private var isHovered = false
-    @State private var initialWindowOrigin: CGPoint = .zero
+    @State private var dragStartLocation: CGPoint? = nil
     
     var body: some View {
         GeometryReader { geometry in
@@ -76,20 +91,21 @@ struct CameraPreviewBubbleView: View {
                     .gesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { value in
-                                if value.translation == .zero {
-                                    // Store initial position of the window when the drag starts
+                                if dragStartLocation == nil {
                                     if let currentWindow = panel {
-                                        initialWindowOrigin = currentWindow.frame.origin
+                                        dragStartLocation = currentWindow.frame.origin
                                     }
                                 }
                                 
-                                // Drag the window smoothly
-                                if let window = panel {
-                                    let newX = initialWindowOrigin.x + value.translation.width
-                                    let newY = initialWindowOrigin.y - value.translation.height // Y is inverted in macOS screen space
+                                if let startOrigin = dragStartLocation, let window = panel {
+                                    let newX = startOrigin.x + value.translation.width
+                                    let newY = startOrigin.y - value.translation.height // Y is inverted in macOS screen space
                                     window.setFrameOrigin(CGPoint(x: newX, y: newY))
                                     onMove(window.frame)
                                 }
+                            }
+                            .onEnded { _ in
+                                dragStartLocation = nil
                             }
                     )
             }
