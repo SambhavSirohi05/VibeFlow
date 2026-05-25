@@ -82,7 +82,12 @@ class SubtitleGenerator {
         }
         
         let decoder = JSONDecoder()
-        return try decoder.decode(SarvamResponse.self, from: data)
+        do {
+            return try decoder.decode(SarvamResponse.self, from: data)
+        } catch {
+            let jsonString = String(data: data, encoding: .utf8) ?? "Unable to read raw JSON response"
+            throw NSError(domain: "SubtitleGenerator", code: 0, userInfo: [NSLocalizedDescriptionKey: "Decoding error: \(error.localizedDescription). Response: \(jsonString)"])
+        }
     }
     
     /// Converts Sarvam timestamps into a standard SRT subtitle string
