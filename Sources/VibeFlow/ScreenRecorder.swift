@@ -36,6 +36,7 @@ class ScreenRecorder: NSObject, ObservableObject {
     
     // Components
     private let cursorManager = CursorManager()
+    private let cameraManager = CameraManager()
     private let compositor = VideoCompositor()
     
     override init() {
@@ -144,6 +145,11 @@ class ScreenRecorder: NSObject, ObservableObject {
                 startMicrophoneCapture()
             }
             
+            // Start camera capture (if enabled)
+            if renderConfig.enableCamera {
+                cameraManager.start()
+            }
+            
             assetWriter.startWriting()
             storage.sessionLock.lock()
             storage.sessionStarted = false
@@ -203,6 +209,9 @@ class ScreenRecorder: NSObject, ObservableObject {
             
             // Stop microphone
             stopMicrophoneCapture()
+            
+            // Stop camera
+            cameraManager.stop()
             
             storage.videoInput?.markAsFinished()
             storage.audioInput?.markAsFinished()
@@ -320,6 +329,7 @@ extension ScreenRecorder: SCStreamOutput {
             cursorPosition: translatedCursorPos,
             displayFrame: displayRect,
             focusZoomTrigger: translatedTrigger,
+            cameraFrame: cameraManager.latestFrame,
             targetOutputSize: outputSize
         ) {
              let success = adaptor.append(composedBuffer, withPresentationTime: currentTime)
