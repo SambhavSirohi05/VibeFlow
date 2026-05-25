@@ -138,9 +138,9 @@ struct RendererConfiguration {
     
     // Camera settings
     var enableCamera: Bool = false
-    var cameraPosition: CameraPosition = .bottomLeft
-    var cameraShape: CameraShape = .circle
-    var cameraSize: CGFloat = 200.0
+    var cameraPosition: CameraPosition = .bottomRight
+    var cameraShape: CameraShape = .roundedRectangle
+    var cameraSize: CGFloat = 400.0
     var enableCameraBorder: Bool = false
     
     // Subtitle settings
@@ -150,6 +150,14 @@ struct RendererConfiguration {
     var subtitleFontSize: SubtitleFontSize = .medium
     var subtitleTextColor: SubtitleTextColor = .white
     var subtitleBgOpacity: Double = 0.6
+    
+    // Teleprompter settings
+    var enableTeleprompter: Bool = false
+    var teleprompterText: String = "Type or paste your script here..."
+    var teleprompterFontSize: CGFloat = 24.0
+    var teleprompterOpacity: Double = 0.7
+    var teleprompterScrollSpeed: Double = 30.0
+    var isTeleprompterScrolling: Bool = false
     
     // For convenience in UI
     var solidColor: Color = .blue
@@ -167,9 +175,9 @@ struct RendererConfiguration {
         zoomIdleDelay: 0.5,
         audioMode: .both,
         enableCamera: false,
-        cameraPosition: .bottomLeft,
-        cameraShape: .circle,
-        cameraSize: 200.0,
+        cameraPosition: .bottomRight,
+        cameraShape: .roundedRectangle,
+        cameraSize: 400.0,
         enableCameraBorder: false,
         enableAutoSubtitles: false,
         sarvamAPIKey: "",
@@ -177,6 +185,12 @@ struct RendererConfiguration {
         subtitleFontSize: .medium,
         subtitleTextColor: .white,
         subtitleBgOpacity: 0.6,
+        enableTeleprompter: false,
+        teleprompterText: "Type or paste your script here...",
+        teleprompterFontSize: 24.0,
+        teleprompterOpacity: 0.7,
+        teleprompterScrollSpeed: 30.0,
+        isTeleprompterScrolling: false,
         solidColor: .blue,
         gradientColors: [Color(red: 0.2, green: 0.2, blue: 0.6), Color(red: 0.6, green: 0.2, blue: 0.4)]
     )
@@ -505,7 +519,7 @@ struct BackgroundRenderer: View {
                     
                     HStack {
                         Text("Size")
-                        Slider(value: $config.cameraSize, in: 100...300, step: 10)
+                        Slider(value: $config.cameraSize, in: 100...600, step: 10)
                         Text(String(format: "%.0fpx", config.cameraSize))
                             .frame(width: 45)
                     }
@@ -549,6 +563,44 @@ struct BackgroundRenderer: View {
                         Slider(value: $config.subtitleBgOpacity, in: 0.0...1.0, step: 0.1)
                     }
                     .padding(.top, 4)
+                }
+            }
+            
+            GroupBox(label: Text("Teleprompter / Script")) {
+                Toggle("Enable Teleprompter Overlay", isOn: $config.enableTeleprompter)
+                
+                if config.enableTeleprompter {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Script Text:")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        TextEditor(text: $config.teleprompterText)
+                            .font(.system(size: 11))
+                            .frame(height: 100)
+                            .border(Color.secondary.opacity(0.2), width: 1)
+                            .cornerRadius(4)
+                        
+                        HStack {
+                            Text("Font Size")
+                            Slider(value: $config.teleprompterFontSize, in: 16...48, step: 2)
+                            Text("\(Int(config.teleprompterFontSize))pt")
+                                .frame(width: 45)
+                        }
+                        
+                        HStack {
+                            Text("Opacity")
+                            Slider(value: $config.teleprompterOpacity, in: 0.2...1.0, step: 0.05)
+                            Text(String(format: "%.0f%%", config.teleprompterOpacity * 100))
+                                .frame(width: 45)
+                        }
+                        
+                        HStack {
+                            Text("Scroll Speed")
+                            Slider(value: $config.teleprompterScrollSpeed, in: 10...120, step: 5)
+                            Text("\(Int(config.teleprompterScrollSpeed))px")
+                                .frame(width: 45)
+                        }
+                    }
                 }
             }
             

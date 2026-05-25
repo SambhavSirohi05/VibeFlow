@@ -15,16 +15,21 @@ class PermissionsViewModel: ObservableObject {
     }
     
     func checkScreenRecordingPermission() {
-        hasScreenRecordingPermission = CGPreflightScreenCaptureAccess()
+        // Preflight check
+        let preflight = CGPreflightScreenCaptureAccess()
         
-        if !hasScreenRecordingPermission {
-            Task {
-                do {
-                    _ = try await SCShareableContent.current
-                    self.hasScreenRecordingPermission = true
-                } catch {
-                    self.hasScreenRecordingPermission = false
-                }
+        // If preflight is false, request access to trigger the native macOS dialog prompt
+        if !preflight {
+            _ = CGRequestScreenCaptureAccess()
+        }
+        
+        // Verify by attempting to fetch shareable content to avoid false positives (e.g. terminal inheritance)
+        Task {
+            do {
+                _ = try await SCShareableContent.current
+                self.hasScreenRecordingPermission = true
+            } catch {
+                self.hasScreenRecordingPermission = false
             }
         }
     }

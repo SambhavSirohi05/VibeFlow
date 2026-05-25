@@ -9,6 +9,5 @@ OneTake.dmg
 *.mov
 *.mp4
 background.png
-build_dmg.sh
 dmg_root/
 OneTake_Visual.dmg

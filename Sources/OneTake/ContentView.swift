@@ -173,11 +173,19 @@ struct RecorderView: View {
                         .frame(width: 200)
                     }
                     
-                    Button("Layout Settings") {
-                        recorder.isPreviewingSettings = true
-                        showSettings = true
+                    HStack(spacing: 12) {
+                        Button(recorder.renderConfig.enableTeleprompter ? "Hide Script" : "Show Script") {
+                            recorder.renderConfig.enableTeleprompter.toggle()
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(recorder.renderConfig.enableTeleprompter ? .orange : .secondary)
+                        
+                        Button("Layout Settings") {
+                            recorder.isPreviewingSettings = true
+                            showSettings = true
+                        }
+                        .buttonStyle(.bordered)
                     }
-                    .buttonStyle(.bordered)
                     
                     Button("Start Recording") {
                         Task { await recorder.start() }

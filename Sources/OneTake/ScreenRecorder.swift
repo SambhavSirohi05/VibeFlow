@@ -34,6 +34,7 @@ class ScreenRecorder: NSObject, ObservableObject {
         var cameraPanel: CameraPreviewPanel?
         var cameraPanelFrame: CGRect?
         let cameraFrameLock = NSLock()
+        var teleprompterPanel: NSPanel?
         var micWavWriter: AVAudioFile?
         var micWavURL: URL?
     }
@@ -51,6 +52,8 @@ class ScreenRecorder: NSObject, ObservableObject {
     
     private var lastCameraPosition: CameraPosition?
 
+    @Published var teleprompterResetOffset = false
+
     override init() {
         super.init()
         
@@ -61,19 +64,29 @@ class ScreenRecorder: NSObject, ObservableObject {
                 self.updateCameraState(newConfig: newConfig, isRecording: isRecording, isPreviewing: isPreviewing)
             }
             .store(in: &cancellables)
+            
+        $renderConfig
+            .receive(on: RunLoop.main)
+            .sink { [weak self] newConfig in
+                guard let self = self else { return }
+                self.updateTeleprompterState(newConfig: newConfig)
+            }
+            .store(in: &cancellables)
     }
     
     deinit {
         let panel = storage.cameraPanel
+        let teleprompter = storage.teleprompterPanel
         DispatchQueue.main.async {
             panel?.orderOut(nil)
+            teleprompter?.orderOut(nil)
         }
     }
     
     private func positionCameraPanel(panel: CameraPreviewPanel, config: RendererConfiguration) {
         guard let mainScreen = NSScreen.main ?? NSScreen.screens.first else { return }
         let screenFrame = mainScreen.visibleFrame
-        let size = config.cameraSize * 1.6
+        let size = (config.cameraSize * 0.5) * 1.6
         
         let x: CGFloat
         let y: CGFloat
@@ -108,7 +121,7 @@ class ScreenRecorder: NSObject, ObservableObject {
                 let panel = CameraPreviewPanel(
                     session: cameraManager.session,
                     shape: newConfig.cameraShape,
-                    size: newConfig.cameraSize,
+                    size: newConfig.cameraSize * 0.5,
                     hasBorder: newConfig.enableCameraBorder,
                     onMove: { [weak self] rect in
                         guard let self = self else { return }
@@ -123,13 +136,13 @@ class ScreenRecorder: NSObject, ObservableObject {
                 self.lastCameraPosition = newConfig.cameraPosition
                 
                 panel.orderFront(nil)
-                excludeCameraPanelFromCapture()
+                excludePanelsFromCapture()
             } else if let panel = storage.cameraPanel {
                 if positionChanged {
                     positionCameraPanel(panel: panel, config: newConfig)
                     self.lastCameraPosition = newConfig.cameraPosition
                 } else {
-                    let size = newConfig.cameraSize * 1.6
+                    let size = (newConfig.cameraSize * 0.5) * 1.6
                     let oldFrame = panel.frame
                     let newFrame = NSRect(
                         x: oldFrame.midX - size/2,
@@ -144,7 +157,7 @@ class ScreenRecorder: NSObject, ObservableObject {
                     rootView: CameraPreviewBubbleView(
                         session: cameraManager.session,
                         shape: newConfig.cameraShape,
-                        size: newConfig.cameraSize,
+                        size: newConfig.cameraSize * 0.5,
                         hasBorder: newConfig.enableCameraBorder,
                         panel: panel,
                         onMove: { [weak self] rect in
@@ -163,7 +176,7 @@ class ScreenRecorder: NSObject, ObservableObject {
                 storage.cameraPanelFrame = panel.frame
                 storage.cameraFrameLock.unlock()
                 
-                excludeCameraPanelFromCapture()
+                excludePanelsFromCapture()
             }
         } else {
             if storage.cameraPanel != nil {
@@ -179,18 +192,57 @@ class ScreenRecorder: NSObject, ObservableObject {
         }
     }
     
-    private func excludeCameraPanelFromCapture() {
-        guard let stream = stream, let panel = storage.cameraPanel else { return }
+    private func updateTeleprompterState(newConfig: RendererConfiguration) {
+        let shouldShow = newConfig.enableTeleprompter
+        
+        if shouldShow {
+            if storage.teleprompterPanel == nil {
+                let resetBinding = Binding<Bool>(
+                    get: { [weak self] in self?.teleprompterResetOffset ?? false },
+                    set: { [weak self] in self?.teleprompterResetOffset = $0 }
+                )
+                
+                let panel = TeleprompterPanel(
+                    recorder: self,
+                    resetOffset: resetBinding,
+                    onClose: { [weak self] in
+                        guard let self = self else { return }
+                        self.renderConfig.enableTeleprompter = false
+                    }
+                )
+                storage.teleprompterPanel = panel
+                panel.orderFront(nil)
+                excludePanelsFromCapture()
+            }
+        } else {
+            if let panel = storage.teleprompterPanel {
+                panel.orderOut(nil)
+                storage.teleprompterPanel = nil
+                excludePanelsFromCapture()
+            }
+        }
+    }
+    
+    private func excludePanelsFromCapture() {
+        guard let stream = stream else { return }
         Task {
             do {
                 let content = try await SCShareableContent.current
-                let panelWindowNumber = panel.windowNumber
-                if panelWindowNumber > 0 {
-                    let matching = content.windows.filter { $0.windowID == CGWindowID(panelWindowNumber) }
-                    if let display = self.selectedDisplay {
-                        let filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: matching)
-                        try await stream.updateContentFilter(filter)
-                    }
+                var excludedWindows: [SCWindow] = []
+                
+                if let cameraPanel = storage.cameraPanel, cameraPanel.windowNumber > 0 {
+                    let matching = content.windows.filter { $0.windowID == CGWindowID(cameraPanel.windowNumber) }
+                    excludedWindows.append(contentsOf: matching)
+                }
+                
+                if let teleprompterPanel = storage.teleprompterPanel, teleprompterPanel.windowNumber > 0 {
+                    let matching = content.windows.filter { $0.windowID == CGWindowID(teleprompterPanel.windowNumber) }
+                    excludedWindows.append(contentsOf: matching)
+                }
+                
+                if let display = self.selectedDisplay {
+                    let filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: excludedWindows)
+                    try await stream.updateContentFilter(filter)
                 }
             } catch {
                 // Ignore
@@ -213,6 +265,11 @@ class ScreenRecorder: NSObject, ObservableObject {
     func startRecording() async {
         guard let display = selectedDisplay else {
             return
+        }
+        
+        if renderConfig.enableTeleprompter {
+            renderConfig.isTeleprompterScrolling = false
+            teleprompterResetOffset = true
         }
         
         let saveDir = renderConfig.outputDirectory ?? FileManager.default.temporaryDirectory
@@ -354,17 +411,20 @@ class ScreenRecorder: NSObject, ObservableObject {
             return
         }
         
-        // Exclude the camera panel window from the recording
+        // Exclude camera and teleprompter panels from the recording
         var excludedWindows: [SCWindow] = []
         do {
             let content = try await SCShareableContent.current
-            let panelWindowNumber = storage.cameraPanel?.windowNumber ?? 0
-            if panelWindowNumber > 0 {
-                let matching = content.windows.filter { $0.windowID == CGWindowID(panelWindowNumber) }
+            if let cameraPanel = storage.cameraPanel, cameraPanel.windowNumber > 0 {
+                let matching = content.windows.filter { $0.windowID == CGWindowID(cameraPanel.windowNumber) }
+                excludedWindows.append(contentsOf: matching)
+            }
+            if let teleprompterPanel = storage.teleprompterPanel, teleprompterPanel.windowNumber > 0 {
+                let matching = content.windows.filter { $0.windowID == CGWindowID(teleprompterPanel.windowNumber) }
                 excludedWindows.append(contentsOf: matching)
             }
         } catch {
-            // Ignore failure to fetch windows
+            // Ignore
         }
         
         // SCStream Configuration - use recording resolution
@@ -402,6 +462,21 @@ class ScreenRecorder: NSObject, ObservableObject {
             self.stream = stream
             isRecording = true
             error = nil
+            
+            // Update stream filters to exclude overlay panels
+            excludePanelsFromCapture()
+            
+            // Teleprompter 3-second auto-start delay
+            if renderConfig.enableTeleprompter {
+                Task {
+                    try? await Task.sleep(for: .seconds(3))
+                    await MainActor.run {
+                        if self.isRecording && self.renderConfig.enableTeleprompter {
+                            self.renderConfig.isTeleprompterScrolling = true
+                        }
+                    }
+                }
+            }
         } catch {
             self.error = error
             isRecording = false
@@ -409,6 +484,10 @@ class ScreenRecorder: NSObject, ObservableObject {
     }
     
     func stopRecording() async {
+        if renderConfig.enableTeleprompter {
+            renderConfig.isTeleprompterScrolling = false
+        }
+        
         do {
             try await stream?.stopCapture()
             stream = nil
@@ -582,7 +661,23 @@ extension ScreenRecorder: SCStreamOutput {
         
         let displayWidth = CVPixelBufferGetWidth(pixelBuffer)
         let displayHeight = CVPixelBufferGetHeight(pixelBuffer)
-        let displayRect = CGRect(x: 0, y: 0, width: displayWidth, height: displayHeight)
+        
+        let displayPointsWidth: CGFloat
+        let displayPointsHeight: CGFloat
+        if let display = selectedDisplay {
+            let bounds = CGDisplayBounds(display.displayID)
+            if bounds.width > 0 && bounds.height > 0 {
+                displayPointsWidth = bounds.width
+                displayPointsHeight = bounds.height
+            } else {
+                displayPointsWidth = CGFloat(display.width)
+                displayPointsHeight = CGFloat(display.height)
+            }
+        } else {
+            displayPointsWidth = CGFloat(displayWidth)
+            displayPointsHeight = CGFloat(displayHeight)
+        }
+        let displayRect = CGRect(x: 0, y: 0, width: displayPointsWidth, height: displayPointsHeight)
         
         let rawCursorPos = cursorManager.currentPosition
         let translatedCursorPos: CGPoint
@@ -591,10 +686,20 @@ extension ScreenRecorder: SCStreamOutput {
         } else {
             translatedCursorPos = rawCursorPos
         }
+        var shouldAllowZoom = true
+        storage.sessionLock.lock()
+        if storage.sessionStarted {
+            let elapsed = CMTimeGetSeconds(CMTimeSubtract(currentTime, storage.firstSampleTime))
+            if elapsed < 4.0 {
+                shouldAllowZoom = false
+            }
+        }
+        storage.sessionLock.unlock()
+        
         let focusTrigger = cursorManager.focusZoomTrigger
         
         let translatedTrigger: CursorManager.FocusZoomTrigger?
-        if let trigger = focusTrigger, let display = selectedDisplay {
+        if shouldAllowZoom, let trigger = focusTrigger, let display = selectedDisplay {
             let translatedPos = translateCursorPosition(trigger.position, for: display, frameWidth: displayWidth, frameHeight: displayHeight)
             translatedTrigger = CursorManager.FocusZoomTrigger(position: translatedPos, timestamp: trigger.timestamp, type: trigger.type)
         } else {
