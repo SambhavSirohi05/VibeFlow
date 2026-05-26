@@ -1,37 +1,44 @@
-# 🎬 OneTake
+# OneTake
 
-**OneTake** is a cinematic screen recording tool built for the "Vibe Coding" era. It transforms your raw screen captures into professional app demos instantly with beautiful backgrounds, smooth animations, and synchronized audio.
+OneTake is a native macOS screen recording application built to produce polished, high-quality tutorials, presentations, and product demos without requiring post-production editing. It combines high-performance screen capture with a focus-free teleprompter, smart cursor spotlight, and automated AI subtitles.
 
-![OneTake App Icon](OneTake.app/Contents/Resources/AppIcon.png)
+## Core Features
 
-## ✨ Features
+- **High-Performance Capture**: Built on Apple's modern ScreenCaptureKit framework for low CPU usage. Captures displays natively or scales dynamically to 1080p, 1440p, or 4K.
+- **Unified Audio Engine**: Records system audio and microphone input simultaneously, blending them into a single stereo track.
+- **Smart Camera Overlay**: A floating camera bubble (Circle or Rounded Rectangle) with custom corner radius and borders. It renders at a compact $0.5\times$ size on-screen during recording to save workspace, but exports at full $1.0\times$ size in the output video.
+- **Focus-Free Teleprompter**: A translucent, glassmorphic overlay for reading scripts. Bypasses Finder's window focus (First Mouse Integration), allowing you to scroll, drag, and adjust teleprompter settings instantly without clicking to focus the window first.
+- **Automated Cursor Spotlight**: Follows the mouse cursor and applies a smooth zoom (up to $2.0\times$) when the cursor clicks or stops moving. Includes a 4-second delay buffer at recording start to prevent accidental zooms.
+- **AI-Powered Subtitles**: Auto-generates styled word-by-word or segment subtitles using the Sarvam AI transcription API, complete with customizable font size, background opacity, and color palettes.
 
-- **Cinematic Focus Zoom**: Intelligent camera transitions that follow your cursor with a stable, drift-free "Focus Lock".
-- **Live Canvas Preview**: Adjust padding, corner radius, and shadows in real-time.
-- **Dynamic Backgrounds**: Switch between Solid Colors, Linear Gradients, or any custom Image background.
-- **Synchronized Audio Engine**: High-fidelity microphone recording mixed perfectly with system audio.
-- **Custom Save Directory**: Choose exactly where your recordings are saved.
-- **Pro Performance**: Launchable from Spotlight and optimized for macOS 13+.
+## System Requirements
 
-## 🚀 Installation & Usage
+- **OS**: macOS 13.0 (Ventura) or newer
+- **Developer Tools**: Xcode 15+ / Swift 5.9+ (if compiling from source)
+- **APIs**: ScreenCaptureKit, AVFoundation
 
-### Method 1: Download the Release (Recommended)
+## Installation & Setup
+
+### Method 1: Pre-built Release (Recommended)
 1. Go to the [Releases](https://github.com/SambhavSirohi05/OneTake/releases) page.
 2. Download `OneTake.dmg`.
-3. Open the DMG and drag **OneTake** to your **Applications** folder.
+3. Open the disk image and drag the **OneTake** icon into your **Applications** folder.
 
 > [!IMPORTANT]
-> **First Time Opening:**
-> Since this app is independently developed, macOS may show a "damaged" or "unidentified developer" warning. 
+> **Ad-Hoc Signing Notice (First-Run)**
+> Since this application is self-signed/ad-hoc signed, macOS Gatekeeper may show a warning when opening it for the first time.
 > 
-> **To fix this:**
-> 1. Open your Terminal.
-> 2. Run this command: `xattr -cr /Applications/OneTake.app`
-> 3. **Right-click** OneTake in your Applications folder and select **Open**. 
-> You only need to do this once!
+> To bypass this restriction:
+> 1. Open the Terminal app.
+> 2. Run the following command:
+>    ```bash
+>    xattr -cr /Applications/OneTake.app
+>    ```
+> 3. Right-click **OneTake.app** in Finder and select **Open**. You will only need to do this once.
 
 ### Method 2: Build from Source
-If you have Swift installed:
+To compile and run the application locally using the Swift Package Manager:
+
 ```bash
 git clone https://github.com/SambhavSirohi05/OneTake.git
 cd OneTake
@@ -40,4 +47,4 @@ swift run
 
 ---
 
-Built with ❤️ by [Sambhav Sirohi](https://github.com/SambhavSirohi05)
+Developer: [Sambhav Sirohi](https://github.com/SambhavSirohi05)
