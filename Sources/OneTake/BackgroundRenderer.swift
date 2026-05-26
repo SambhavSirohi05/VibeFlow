@@ -145,7 +145,11 @@ struct RendererConfiguration {
     
     // Subtitle settings
     var enableAutoSubtitles: Bool = false
-    var sarvamAPIKey: String = ""
+    var sarvamAPIKey: String = UserDefaults.standard.string(forKey: "sarvamAPIKey") ?? "" {
+        didSet {
+            UserDefaults.standard.set(sarvamAPIKey, forKey: "sarvamAPIKey")
+        }
+    }
     var subtitleStyle: SubtitleStyle = .grouped
     var subtitleFontSize: SubtitleFontSize = .medium
     var subtitleTextColor: SubtitleTextColor = .white
@@ -196,7 +200,9 @@ struct RendererConfiguration {
     )
     
     mutating func resetToDefaults() {
+        let currentKey = self.sarvamAPIKey
         self = RendererConfiguration.recommendedDefaults
+        self.sarvamAPIKey = currentKey
     }
 }
 
