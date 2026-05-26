@@ -348,99 +348,110 @@ struct BackgroundRenderer: View {
     @Binding var config: RendererConfiguration
     
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(alignment: .leading, spacing: 16) {
             // Live Preview
             GroupBox(label: Text("Preview")) {
                 LayoutPreview(config: config)
                     .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity)
             }
+            .frame(maxWidth: .infinity)
             
             GroupBox(label: Text("Background")) {
-                Picker("Type", selection: Binding(
-                    get: {
-                        switch config.background {
-                        case .solid: return 0
-                        case .gradient: return 1
-                        case .image: return 2
-                        }
-                    },
-                    set: { (index: Int) in
-                        switch index {
-                        case 0: config.background = .solid(config.solidColor)
-                        case 1: config.background = .gradient(config.gradientColors)
-                        case 2: 
-                            // Initialize with a placeholder URL
-                            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("placeholder.png")
-                            config.background = .image(tempURL)
-                        default: break 
-                        }
-                    }
-                )) {
-                    Text("Solid").tag(0)
-                    Text("Gradient").tag(1)
-                    Text("Image").tag(2)
-                }
-                .pickerStyle(.segmented)
-                
-                if case .solid = config.background {
-                    ColorPicker("Color", selection: $config.solidColor)
-                        .onChange(of: config.solidColor) { newValue in
-                            config.background = .solid(newValue)
-                        }
-                } else if case .gradient = config.background {
-                    HStack {
-                        ColorPicker("Start", selection: $config.gradientColors[0])
-                        ColorPicker("End", selection: $config.gradientColors[1])
-                    }
-                    .onChange(of: config.gradientColors) { newValue in
-                        config.background = .gradient(newValue)
-                    }
-                } else if case .image(let url) = config.background {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Button("Choose Image...") {
-                            selectImageFile()
-                        }
-                        .buttonStyle(.bordered)
-                        
-                        if let image = NSImage(contentsOf: url) {
-                            ZStack(alignment: .topTrailing) {
-                                Image(nsImage: image)
-                                   .resizable()
-                                   .aspectRatio(contentMode: .fill)
-                                   .frame(height: 80)
-                                   .frame(maxWidth: .infinity)
-                                   .cornerRadius(8)
-                                   .clipped()
-                                
-                                Button(action: {
-                                    let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("placeholder.png")
-                                    config.background = .image(tempURL)
-                                }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundColor(.white)
-                                        .background(Circle().fill(Color.black.opacity(0.6)))
-                                        .shadow(radius: 2)
-                                }
-                                .buttonStyle(.plain)
-                                .padding(4)
-                                .help("Remove image")
+                VStack(alignment: .leading, spacing: 8) {
+                    Picker("Type", selection: Binding(
+                        get: {
+                            switch config.background {
+                            case .solid: return 0
+                            case .gradient: return 1
+                            case .image: return 2
                             }
-                        } else {
-                            Text("No image selected")
-                                .foregroundStyle(.secondary)
-                                .font(.caption)
+                        },
+                        set: { (index: Int) in
+                            switch index {
+                            case 0: config.background = .solid(config.solidColor)
+                            case 1: config.background = .gradient(config.gradientColors)
+                            case 2: 
+                                // Initialize with a placeholder URL
+                                let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("placeholder.png")
+                                config.background = .image(tempURL)
+                            default: break 
+                            }
+                        }
+                    )) {
+                        Text("Solid").tag(0)
+                        Text("Gradient").tag(1)
+                        Text("Image").tag(2)
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.bottom, 4)
+                    
+                    if case .solid = config.background {
+                        ColorPicker("Color", selection: $config.solidColor)
+                            .onChange(of: config.solidColor) { newValue in
+                                config.background = .solid(newValue)
+                            }
+                    } else if case .gradient = config.background {
+                        HStack {
+                            ColorPicker("Start", selection: $config.gradientColors[0])
+                            ColorPicker("End", selection: $config.gradientColors[1])
+                        }
+                        .onChange(of: config.gradientColors) { newValue in
+                            config.background = .gradient(newValue)
+                        }
+                    } else if case .image(let url) = config.background {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Button("Choose Image...") {
+                                selectImageFile()
+                            }
+                            .buttonStyle(.bordered)
+                            
+                            if let image = NSImage(contentsOf: url) {
+                                ZStack(alignment: .topTrailing) {
+                                    Image(nsImage: image)
+                                       .resizable()
+                                       .aspectRatio(contentMode: .fill)
+                                       .frame(height: 80)
+                                       .frame(maxWidth: .infinity)
+                                       .cornerRadius(8)
+                                       .clipped()
+                                    
+                                    Button(action: {
+                                        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("placeholder.png")
+                                        config.background = .image(tempURL)
+                                    }) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundColor(.white)
+                                            .background(Circle().fill(Color.black.opacity(0.6)))
+                                            .shadow(radius: 2)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .padding(4)
+                                    .help("Remove image")
+                                }
+                            } else {
+                                Text("No image selected")
+                                    .foregroundStyle(.secondary)
+                                    .font(.caption)
+                            }
                         }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(maxWidth: .infinity)
             
             GroupBox(label: Text("Resolution")) {
-                Picker("Resolution", selection: $config.recordingResolution) {
-                    ForEach(RecordingResolution.allCases) { resolution in
-                        Text(resolution.rawValue).tag(resolution)
+                VStack(alignment: .leading, spacing: 8) {
+                    Picker("Resolution", selection: $config.recordingResolution) {
+                        ForEach(RecordingResolution.allCases) { resolution in
+                            Text(resolution.rawValue).tag(resolution)
+                        }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(maxWidth: .infinity)
             
             GroupBox(label: Text("Storage")) {
                 VStack(alignment: .leading, spacing: 8) {
@@ -461,148 +472,174 @@ struct BackgroundRenderer: View {
                         }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(maxWidth: .infinity)
             
             GroupBox(label: Text("Layout")) {
-                HStack {
-                    Text("Padding")
-                    Slider(value: $config.padding, in: 0...200)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Padding")
+                        Slider(value: $config.padding, in: 0...200)
+                    }
+                    
+                    HStack {
+                        Text("Corners")
+                        Slider(value: $config.cornerRadius, in: 0...50)
+                    }
+                    
+                    HStack {
+                        Text("Shadow")
+                        Slider(value: $config.shadowRadius, in: 0...50)
+                    }
                 }
-                
-                HStack {
-                    Text("Corners")
-                    Slider(value: $config.cornerRadius, in: 0...50)
-                }
-                
-                HStack {
-                    Text("Shadow")
-                    Slider(value: $config.shadowRadius, in: 0...50)
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(maxWidth: .infinity)
             
             GroupBox(label: Text("Cursor Zoom")) {
-                Toggle("Enable Zoom", isOn: $config.enableCursorZoom)
-                
-                if config.enableCursorZoom {
-                    HStack {
-                        Text("Idle Delay")
-                        Slider(value: $config.zoomIdleDelay, in: 0.1...2.0, step: 0.1)
-                        Text(String(format: "%.1fs", config.zoomIdleDelay))
-                            .frame(width: 40)
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle("Enable Zoom", isOn: $config.enableCursorZoom)
+                    
+                    if config.enableCursorZoom {
+                        HStack {
+                            Text("Idle Delay")
+                            Slider(value: $config.zoomIdleDelay, in: 0.1...2.0, step: 0.1)
+                            Text(String(format: "%.1fs", config.zoomIdleDelay))
+                                .frame(width: 40)
+                        }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(maxWidth: .infinity)
             
             GroupBox(label: Text("Audio")) {
-                Picker("Audio Source", selection: $config.audioMode) {
-                    ForEach(AudioCaptureMode.allCases) { mode in
-                        Text(mode.rawValue).tag(mode)
+                VStack(alignment: .leading, spacing: 8) {
+                    Picker("Audio Source", selection: $config.audioMode) {
+                        ForEach(AudioCaptureMode.allCases) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(maxWidth: .infinity)
             
             GroupBox(label: Text("Camera")) {
-                Toggle("Enable Camera", isOn: $config.enableCamera)
-                
-                if config.enableCamera {
-                    Picker("Position", selection: $config.cameraPosition) {
-                        ForEach(CameraPosition.allCases) { pos in
-                            Text(pos.rawValue).tag(pos)
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle("Enable Camera", isOn: $config.enableCamera)
+                    
+                    if config.enableCamera {
+                        Picker("Position", selection: $config.cameraPosition) {
+                            ForEach(CameraPosition.allCases) { pos in
+                                Text(pos.rawValue).tag(pos)
+                            }
                         }
-                    }
-                    
-                    Picker("Shape", selection: $config.cameraShape) {
-                        ForEach(CameraShape.allCases) { shape in
-                            Text(shape.rawValue).tag(shape)
+                        
+                        Picker("Shape", selection: $config.cameraShape) {
+                            ForEach(CameraShape.allCases) { shape in
+                                Text(shape.rawValue).tag(shape)
+                            }
                         }
+                        
+                        HStack {
+                            Text("Size")
+                            Slider(value: $config.cameraSize, in: 100...600, step: 10)
+                            Text(String(format: "%.0fpx", config.cameraSize))
+                                .frame(width: 45)
+                        }
+                        
+                        Toggle("Show Border", isOn: $config.enableCameraBorder)
                     }
-                    
-                    HStack {
-                        Text("Size")
-                        Slider(value: $config.cameraSize, in: 100...600, step: 10)
-                        Text(String(format: "%.0fpx", config.cameraSize))
-                            .frame(width: 45)
-                    }
-                    
-                    Toggle("Show Border", isOn: $config.enableCameraBorder)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(maxWidth: .infinity)
             
             GroupBox(label: Text("Subtitles")) {
-                Toggle("Auto-Generate Subtitles", isOn: $config.enableAutoSubtitles)
-                
-                if config.enableAutoSubtitles {
-                    SecureField("Sarvam API Key", text: $config.sarvamAPIKey)
-                        .textFieldStyle(.roundedBorder)
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle("Auto-Generate Subtitles", isOn: $config.enableAutoSubtitles)
                     
-                    Picker("Style Mode", selection: $config.subtitleStyle) {
-                        ForEach(SubtitleStyle.allCases) { style in
-                            Text(style.rawValue).tag(style)
+                    if config.enableAutoSubtitles {
+                        SecureField("Sarvam API Key", text: $config.sarvamAPIKey)
+                            .textFieldStyle(.roundedBorder)
+                        
+                        Picker("Style Mode", selection: $config.subtitleStyle) {
+                            ForEach(SubtitleStyle.allCases) { style in
+                                Text(style.rawValue).tag(style)
+                            }
                         }
-                    }
-                    
-                    Picker("Font Size", selection: $config.subtitleFontSize) {
-                        ForEach(SubtitleFontSize.allCases) { size in
-                            Text(size.rawValue).tag(size)
+                        
+                        Picker("Font Size", selection: $config.subtitleFontSize) {
+                            ForEach(SubtitleFontSize.allCases) { size in
+                                Text(size.rawValue).tag(size)
+                            }
                         }
-                    }
-                    
-                    Picker("Text Color", selection: $config.subtitleTextColor) {
-                        ForEach(SubtitleTextColor.allCases) { color in
-                            Text(color.rawValue).tag(color)
+                        
+                        Picker("Text Color", selection: $config.subtitleTextColor) {
+                            ForEach(SubtitleTextColor.allCases) { color in
+                                Text(color.rawValue).tag(color)
+                            }
                         }
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text("Background Opacity")
-                            Spacer()
-                            Text(String(format: "%.0f%%", config.subtitleBgOpacity * 100))
-                                .foregroundColor(.secondary)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text("Background Opacity")
+                                Spacer()
+                                Text(String(format: "%.0f%%", config.subtitleBgOpacity * 100))
+                                    .foregroundColor(.secondary)
+                            }
+                            Slider(value: $config.subtitleBgOpacity, in: 0.0...1.0, step: 0.1)
                         }
-                        Slider(value: $config.subtitleBgOpacity, in: 0.0...1.0, step: 0.1)
+                        .padding(.top, 4)
                     }
-                    .padding(.top, 4)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(maxWidth: .infinity)
             
             GroupBox(label: Text("Teleprompter / Script")) {
-                Toggle("Enable Teleprompter Overlay", isOn: $config.enableTeleprompter)
-                
-                if config.enableTeleprompter {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Script Text:")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        TextEditor(text: $config.teleprompterText)
-                            .font(.system(size: 11))
-                            .frame(height: 100)
-                            .border(Color.secondary.opacity(0.2), width: 1)
-                            .cornerRadius(4)
-                        
-                        HStack {
-                            Text("Font Size")
-                            Slider(value: $config.teleprompterFontSize, in: 16...48, step: 2)
-                            Text("\(Int(config.teleprompterFontSize))pt")
-                                .frame(width: 45)
-                        }
-                        
-                        HStack {
-                            Text("Opacity")
-                            Slider(value: $config.teleprompterOpacity, in: 0.2...1.0, step: 0.05)
-                            Text(String(format: "%.0f%%", config.teleprompterOpacity * 100))
-                                .frame(width: 45)
-                        }
-                        
-                        HStack {
-                            Text("Scroll Speed")
-                            Slider(value: $config.teleprompterScrollSpeed, in: 10...120, step: 5)
-                            Text("\(Int(config.teleprompterScrollSpeed))px")
-                                .frame(width: 45)
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle("Enable Teleprompter Overlay", isOn: $config.enableTeleprompter)
+                    
+                    if config.enableTeleprompter {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Script Text:")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            TextEditor(text: $config.teleprompterText)
+                                .font(.system(size: 11))
+                                .frame(height: 100)
+                                .border(Color.secondary.opacity(0.2), width: 1)
+                                .cornerRadius(4)
+                            
+                            HStack {
+                                Text("Font Size")
+                                Slider(value: $config.teleprompterFontSize, in: 16...48, step: 2)
+                                Text("\(Int(config.teleprompterFontSize))pt")
+                                    .frame(width: 45)
+                            }
+                            
+                            HStack {
+                                Text("Opacity")
+                                Slider(value: $config.teleprompterOpacity, in: 0.2...1.0, step: 0.05)
+                                Text(String(format: "%.0f%%", config.teleprompterOpacity * 100))
+                                    .frame(width: 45)
+                            }
+                            
+                            HStack {
+                                Text("Scroll Speed")
+                                Slider(value: $config.teleprompterScrollSpeed, in: 10...120, step: 5)
+                                Text("\(Int(config.teleprompterScrollSpeed))px")
+                                    .frame(width: 45)
+                            }
                         }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(maxWidth: .infinity)
             
             // Reset Button
             Button(action: {
@@ -618,7 +655,7 @@ struct BackgroundRenderer: View {
             .controlSize(.large)
         }
         .padding()
-        .frame(width: 300)
+        .frame(width: 360)
     }
     
     private func selectImageFile() {
