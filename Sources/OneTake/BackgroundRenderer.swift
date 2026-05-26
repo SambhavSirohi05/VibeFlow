@@ -644,13 +644,15 @@ struct BackgroundRenderer: View {
             // Footer Links
             HStack(spacing: 24) {
                 IconButtonLink(
-                    systemName: "code.slash.circle.fill",
+                    imageName: "github",
+                    isCustomImage: true,
                     urlString: "https://github.com/SambhavSirohi05/OneTake",
                     tooltip: "Visit GitHub Repository"
                 )
                 
                 IconButtonLink(
-                    systemName: "globe",
+                    imageName: "globe",
+                    isCustomImage: false,
                     urlString: "https://onetake.app",
                     tooltip: "Visit Website"
                 )
@@ -735,7 +737,8 @@ struct BackgroundRenderer: View {
 // MARK: - Footer Helpers
 
 struct IconButtonLink: View {
-    let systemName: String
+    let imageName: String
+    let isCustomImage: Bool
     let urlString: String
     let tooltip: String
     
@@ -744,14 +747,24 @@ struct IconButtonLink: View {
     var body: some View {
         if let url = URL(string: urlString) {
             Link(destination: url) {
-                Image(systemName: systemName)
-                    .font(.system(size: 20))
-                    .foregroundColor(isHovered ? .blue : .secondary)
-                    .padding(8)
-                    .background(
-                        Circle()
-                            .fill(isHovered ? Color.white.opacity(0.12) : Color.clear)
-                    )
+                Group {
+                    if isCustomImage {
+                        Image(imageName, bundle: .module)
+                            .renderingMode(.template)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 20, height: 20)
+                    } else {
+                        Image(systemName: imageName)
+                            .font(.system(size: 20))
+                    }
+                }
+                .foregroundColor(isHovered ? .blue : .secondary)
+                .padding(8)
+                .background(
+                    Circle()
+                        .fill(isHovered ? Color.white.opacity(0.12) : Color.clear)
+                )
             }
             .buttonStyle(.plain)
             .help(tooltip)
