@@ -249,30 +249,26 @@ struct RecorderView: View {
                         Button(recorder.renderConfig.enableTeleprompter ? "Hide Script" : "Show Script") {
                             recorder.renderConfig.enableTeleprompter.toggle()
                         }
-                        .buttonStyle(.bordered)
-                        .tint(recorder.renderConfig.enableTeleprompter ? .orange : .secondary)
+                        .buttonStyle(EqualWidthButtonStyle(tint: recorder.renderConfig.enableTeleprompter ? Color.orange : nil))
                         
                         Button("Layout Settings") {
                             recorder.isPreviewingSettings = true
                             showSettings = true
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(EqualWidthButtonStyle())
                     }
+                    .frame(width: 240)
                     .padding(.vertical, 8)
                     
                     Button(action: {
                         Task { await recorder.start() }
                     }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "record.circle")
-                                .font(.title3)
-                            Text("Start Recording")
-                                .fontWeight(.semibold)
-                        }
-                        .frame(width: 240, height: 38)
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(6)
+                        Text("Start Recording")
+                            .fontWeight(.semibold)
+                            .frame(width: 240, height: 38)
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(6)
                     }
                     .buttonStyle(.plain)
                     .disabled(recorder.selectedDisplay == nil)
@@ -308,7 +304,50 @@ struct RecorderView: View {
                          .padding(.bottom, 20)
                  }
              }
-             .frame(width: 400, height: 650)
+              .frame(width: 400, height: 650)
+        }
+    }
+}
+
+struct EqualWidthButtonStyle: ButtonStyle {
+    var tint: Color? = nil
+    
+    func makeBody(configuration: Configuration) -> some View {
+        EqualWidthButton(configuration: configuration, tint: tint)
+    }
+    
+    struct EqualWidthButton: View {
+        let configuration: ButtonStyle.Configuration
+        let tint: Color?
+        @State private var isHovered = false
+        
+        var body: some View {
+            let bgColor = currentBackgroundColor
+            
+            configuration.label
+                .foregroundColor(.white)
+                .font(.body)
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(bgColor)
+                )
+                .onHover { hovering in
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        isHovered = hovering
+                    }
+                }
+        }
+        
+        private var currentBackgroundColor: Color {
+            if configuration.isPressed {
+                return tint?.opacity(0.25) ?? Color.white.opacity(0.16)
+            } else if isHovered {
+                return tint?.opacity(0.18) ?? Color.white.opacity(0.12)
+            } else {
+                return tint?.opacity(0.10) ?? Color.white.opacity(0.08)
+            }
         }
     }
 }
