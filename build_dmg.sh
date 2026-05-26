@@ -79,11 +79,19 @@ mkdir -p "$DMG_ROOT"
 # Copy the app to the DMG root
 cp -R "$APP_DIR" "$DMG_ROOT/"
 
-# Create a symlink to /Applications inside the DMG
-ln -s /Applications "$DMG_ROOT/Applications"
-
-echo "💾 Building DMG using hdiutil..."
-hdiutil create -volname "OneTake" -srcfolder "$DMG_ROOT" -ov -format UDZO "$DMG_NAME"
+echo "💾 Building DMG using create-dmg..."
+create-dmg \
+  --volname "OneTake" \
+  --volicon "AppIcon.icns" \
+  --background "installer_background.png" \
+  --window-pos 200 120 \
+  --window-size 600 400 \
+  --icon-size 96 \
+  --icon "OneTake.app" 146 200 \
+  --hide-extension "OneTake.app" \
+  --app-drop-link 454 200 \
+  "$DMG_NAME" \
+  "$DMG_ROOT/"
 
 # Clean up temporary folders
 rm -rf "$DMG_ROOT"
