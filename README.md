@@ -20,7 +20,7 @@ OneTake is a native macOS screen recording application built to produce polished
 ## Installation & Setup
 
 ### Method 1: Pre-built Release (Recommended)
-1. Download the latest installer from the official [OneTake Website]([https://pages.github.com/](https://onetakeweb.vercel.app/)).
+1. Download the latest installer from the official [OneTake Website](https://onetakeweb.vercel.app/).
 2. Open the downloaded `OneTake.dmg`.
 3. Drag the **OneTake** icon into your **Applications** folder.
 
