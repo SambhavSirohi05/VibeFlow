@@ -749,11 +749,20 @@ struct IconButtonLink: View {
             Link(destination: url) {
                 Group {
                     if isCustomImage {
-                        Image(imageName, bundle: .module)
-                            .renderingMode(.template)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 20, height: 20)
+                        if let path = Bundle.module.path(forResource: imageName, ofType: "png"),
+                           let nsImage = NSImage(contentsOfFile: path) {
+                            let templateImage: NSImage = {
+                                nsImage.isTemplate = true
+                                return nsImage
+                            }()
+                            Image(nsImage: templateImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 20, height: 20)
+                        } else {
+                            Image(systemName: "questionmark.circle")
+                                .font(.system(size: 20))
+                        }
                     } else {
                         Image(systemName: imageName)
                             .font(.system(size: 20))
