@@ -659,7 +659,7 @@ struct BackgroundRenderer: View {
                 IconButtonLink(
                     imageName: "globe",
                     isCustomImage: false,
-                    urlString: "https://onetake.app",
+                    urlString: "https://onetakeweb.vercel.app/",
                     tooltip: "Visit Website"
                 )
             }
