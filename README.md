@@ -20,21 +20,10 @@ OneTake is a native macOS screen recording application built to produce polished
 ## Installation & Setup
 
 ### Method 1: Pre-built Release (Recommended)
-1. Go to the [Releases](https://github.com/SambhavSirohi05/OneTake/releases) page.
-2. Download `OneTake.dmg`.
-3. Open the disk image and drag the **OneTake** icon into your **Applications** folder.
+1. Download the latest installer from the official [OneTake Website]([https://pages.github.com/](https://onetakeweb.vercel.app/)).
+2. Open the downloaded `OneTake.dmg`.
+3. Drag the **OneTake** icon into your **Applications** folder.
 
-> [!IMPORTANT]
-> **Ad-Hoc Signing Notice (First-Run)**
-> Since this application is self-signed/ad-hoc signed, macOS Gatekeeper may show a warning when opening it for the first time.
-> 
-> To bypass this restriction:
-> 1. Open the Terminal app.
-> 2. Run the following command:
->    ```bash
->    xattr -cr /Applications/OneTake.app
->    ```
-> 3. Right-click **OneTake.app** in Finder and select **Open**. You will only need to do this once.
 
 ### Method 2: Build from Source
 To compile and run the application locally using the Swift Package Manager:
