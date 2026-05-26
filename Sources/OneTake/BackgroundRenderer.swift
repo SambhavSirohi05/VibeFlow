@@ -145,7 +145,11 @@ struct RendererConfiguration {
     
     // Subtitle settings
     var enableAutoSubtitles: Bool = false
-    var sarvamAPIKey: String = ""
+    var sarvamAPIKey: String = UserDefaults.standard.string(forKey: "sarvamAPIKey") ?? "" {
+        didSet {
+            UserDefaults.standard.set(sarvamAPIKey, forKey: "sarvamAPIKey")
+        }
+    }
     var subtitleStyle: SubtitleStyle = .grouped
     var subtitleFontSize: SubtitleFontSize = .medium
     var subtitleTextColor: SubtitleTextColor = .white
@@ -196,7 +200,9 @@ struct RendererConfiguration {
     )
     
     mutating func resetToDefaults() {
+        let currentKey = self.sarvamAPIKey
         self = RendererConfiguration.recommendedDefaults
+        self.sarvamAPIKey = currentKey
     }
 }
 
@@ -641,6 +647,25 @@ struct BackgroundRenderer: View {
             }
             .frame(maxWidth: .infinity)
             
+            // Footer Links
+            HStack(spacing: 24) {
+                IconButtonLink(
+                    imageName: "github",
+                    isCustomImage: true,
+                    urlString: "https://github.com/SambhavSirohi05/OneTake",
+                    tooltip: "Visit GitHub Repository"
+                )
+                
+                IconButtonLink(
+                    imageName: "globe",
+                    isCustomImage: false,
+                    urlString: "https://onetake.app",
+                    tooltip: "Visit Website"
+                )
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 4)
+            
             // Reset Button
             Button(action: {
                 config.resetToDefaults()
@@ -709,6 +734,67 @@ struct BackgroundRenderer: View {
                     DispatchQueue.main.async {
                         self.config.outputDirectory = url
                     }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Footer Helpers
+
+struct IconButtonLink: View {
+    let imageName: String
+    let isCustomImage: Bool
+    let urlString: String
+    let tooltip: String
+    
+    @State private var isHovered = false
+    
+    var body: some View {
+        if let url = URL(string: urlString) {
+            Link(destination: url) {
+                Group {
+                    if isCustomImage {
+                        let nsImage: NSImage? = {
+                            if let path = Bundle.module.path(forResource: imageName, ofType: "svg") {
+                                return NSImage(contentsOfFile: path)
+                            }
+                            if let path = Bundle.module.path(forResource: imageName, ofType: "png") {
+                                return NSImage(contentsOfFile: path)
+                            }
+                            return nil
+                        }()
+                        
+                        if let image = nsImage {
+                            let templateImage: NSImage = {
+                                image.isTemplate = true
+                                return image
+                            }()
+                            Image(nsImage: templateImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 20, height: 20)
+                        } else {
+                            Image(systemName: "questionmark.circle")
+                                .font(.system(size: 20))
+                        }
+                    } else {
+                        Image(systemName: imageName)
+                            .font(.system(size: 20))
+                    }
+                }
+                .foregroundColor(isHovered ? .blue : .secondary)
+                .padding(8)
+                .background(
+                    Circle()
+                        .fill(isHovered ? Color.white.opacity(0.12) : Color.clear)
+                )
+            }
+            .buttonStyle(.plain)
+            .help(tooltip)
+            .onHover { hovering in
+                withAnimation(.easeOut(duration: 0.15)) {
+                    isHovered = hovering
                 }
             }
         }
