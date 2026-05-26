@@ -749,11 +749,20 @@ struct IconButtonLink: View {
             Link(destination: url) {
                 Group {
                     if isCustomImage {
-                        if let path = Bundle.module.path(forResource: imageName, ofType: "png"),
-                           let nsImage = NSImage(contentsOfFile: path) {
+                        let nsImage: NSImage? = {
+                            if let path = Bundle.module.path(forResource: imageName, ofType: "svg") {
+                                return NSImage(contentsOfFile: path)
+                            }
+                            if let path = Bundle.module.path(forResource: imageName, ofType: "png") {
+                                return NSImage(contentsOfFile: path)
+                            }
+                            return nil
+                        }()
+                        
+                        if let image = nsImage {
                             let templateImage: NSImage = {
-                                nsImage.isTemplate = true
-                                return nsImage
+                                image.isTemplate = true
+                                return image
                             }()
                             Image(nsImage: templateImage)
                                 .resizable()
