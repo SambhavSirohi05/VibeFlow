@@ -641,6 +641,23 @@ struct BackgroundRenderer: View {
             }
             .frame(maxWidth: .infinity)
             
+            // Footer Links
+            HStack(spacing: 24) {
+                IconButtonLink(
+                    systemName: "code.slash.circle.fill",
+                    urlString: "https://github.com/SambhavSirohi05/OneTake",
+                    tooltip: "Visit GitHub Repository"
+                )
+                
+                IconButtonLink(
+                    systemName: "globe",
+                    urlString: "https://onetake.app",
+                    tooltip: "Visit Website"
+                )
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 4)
+            
             // Reset Button
             Button(action: {
                 config.resetToDefaults()
@@ -709,6 +726,38 @@ struct BackgroundRenderer: View {
                     DispatchQueue.main.async {
                         self.config.outputDirectory = url
                     }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Footer Helpers
+
+struct IconButtonLink: View {
+    let systemName: String
+    let urlString: String
+    let tooltip: String
+    
+    @State private var isHovered = false
+    
+    var body: some View {
+        if let url = URL(string: urlString) {
+            Link(destination: url) {
+                Image(systemName: systemName)
+                    .font(.system(size: 20))
+                    .foregroundColor(isHovered ? .blue : .secondary)
+                    .padding(8)
+                    .background(
+                        Circle()
+                            .fill(isHovered ? Color.white.opacity(0.12) : Color.clear)
+                    )
+            }
+            .buttonStyle(.plain)
+            .help(tooltip)
+            .onHover { hovering in
+                withAnimation(.easeOut(duration: 0.15)) {
+                    isHovered = hovering
                 }
             }
         }
