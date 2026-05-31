@@ -527,6 +527,7 @@ class ScreenRecorder: NSObject, ObservableObject {
         let recordingSize = renderConfig.recordingResolution.size(for: sourceSize)
         config.width = Int(recordingSize.width)
         config.height = Int(recordingSize.height)
+        config.scalesToFit = true
         config.showsCursor = true // Show native system cursor
         config.minimumFrameInterval = CMTime(value: 1, timescale: 60)
         config.queueDepth = 5
