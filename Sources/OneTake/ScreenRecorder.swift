@@ -6,6 +6,25 @@ import AVFoundation
 import SwiftUI
 import Combine
 
+struct CaptureWindowTarget: Identifiable, Equatable {
+    let id: CGWindowID
+    let window: SCWindow
+    let appName: String
+    let title: String
+    var thumbnail: NSImage?
+    
+    static func == (lhs: CaptureWindowTarget, rhs: CaptureWindowTarget) -> Bool {
+        return lhs.id == rhs.id
+    }
+}
+
+enum CaptureTargetType: String, CaseIterable, Identifiable {
+    case display = "Entire Screen"
+    case window = "Applications"
+    
+    var id: String { self.rawValue }
+}
+
 @MainActor
 class ScreenRecorder: NSObject, ObservableObject {
     @Published var isRecording = false
@@ -16,6 +35,10 @@ class ScreenRecorder: NSObject, ObservableObject {
     @Published var isPreviewingSettings = false
     @Published var isTranscribing = false
     @Published var transcriptionProgress: String? = nil
+    
+    @Published var selectedTargetType: CaptureTargetType = .display
+    @Published var selectedWindow: CaptureWindowTarget?
+    @Published var availableWindows: [CaptureWindowTarget] = []
     
     // Internal State
     private var stream: SCStream?
@@ -227,6 +250,11 @@ class ScreenRecorder: NSObject, ObservableObject {
         guard let stream = stream else { return }
         Task {
             do {
+                if selectedTargetType == .window {
+                    // In window capture mode, overlays are naturally excluded since we only capture the target window.
+                    return
+                }
+                
                 let content = try await SCShareableContent.current
                 var excludedWindows: [SCWindow] = []
                 
@@ -253,9 +281,55 @@ class ScreenRecorder: NSObject, ObservableObject {
     func fetchAvailableContent() async {
         do {
             let content = try await SCShareableContent.current
+            
+            // 1. Fetch displays
             availableDisplays = content.displays
             if selectedDisplay == nil {
                 selectedDisplay = availableDisplays.first
+            }
+            
+            // 2. Fetch windows
+            let filteredWindows = content.windows.filter { window in
+                guard window.isOnScreen,
+                      window.windowLayer == 0,
+                      let title = window.title, !title.isEmpty,
+                      let app = window.owningApplication,
+                      app.bundleIdentifier != "com.apple.dock",
+                      app.bundleIdentifier != "com.apple.finder" || title != "",
+                      app.bundleIdentifier != "com.onetake.app" else {
+                    return false
+                }
+                return true
+            }
+            
+            let targets = await Task.detached(priority: .userInitiated) {
+                var windowTargets: [CaptureWindowTarget] = []
+                for window in filteredWindows {
+                    let appName = window.owningApplication?.applicationName ?? "Unknown App"
+                    let title = window.title ?? "Untitled"
+                    
+                    let cgImage = CGWindowListCreateImage(.null, .optionIncludingWindow, window.windowID, [])
+                    var thumbnailImage: NSImage? = nil
+                    if let cgImg = cgImage {
+                        let size = NSSize(width: 200, height: 125)
+                        thumbnailImage = NSImage(cgImage: cgImg, size: size)
+                    }
+                    
+                    let target = CaptureWindowTarget(
+                        id: window.windowID,
+                        window: window,
+                        appName: appName,
+                        title: title,
+                        thumbnail: thumbnailImage
+                    )
+                    windowTargets.append(target)
+                }
+                return windowTargets
+            }.value
+            
+            self.availableWindows = targets
+            if self.selectedWindow == nil || !targets.contains(where: { $0.id == self.selectedWindow?.id }) {
+                self.selectedWindow = targets.first
             }
         } catch {
             self.error = error
@@ -263,9 +337,8 @@ class ScreenRecorder: NSObject, ObservableObject {
     }
     
     func startRecording() async {
-        guard let display = selectedDisplay else {
-            return
-        }
+        if selectedTargetType == .display && selectedDisplay == nil { return }
+        if selectedTargetType == .window && selectedWindow == nil { return }
         
         if renderConfig.enableTeleprompter {
             renderConfig.isTeleprompterScrolling = false
@@ -283,9 +356,18 @@ class ScreenRecorder: NSObject, ObservableObject {
             cursorManager.reset()
             compositor.resetZoomState()
             
+            // Get source size depending on selection target
+            let sourceSize: CGSize
+            if selectedTargetType == .window, let windowTarget = selectedWindow {
+                sourceSize = windowTarget.window.frame.size
+            } else if let display = selectedDisplay {
+                sourceSize = CGSize(width: CGFloat(display.width), height: CGFloat(display.height))
+            } else {
+                return
+            }
+            
             // Use Recording Resolution size (ensuring even dimensions for H.264/HEVC encoding)
-            let displaySize = CGSize(width: CGFloat(display.width), height: CGFloat(display.height))
-            let baseResolutionSize = renderConfig.recordingResolution.size(for: displaySize)
+            let baseResolutionSize = renderConfig.recordingResolution.size(for: sourceSize)
             let evenWidth = (Int(baseResolutionSize.width) / 2) * 2
             let evenHeight = (Int(baseResolutionSize.height) / 2) * 2
             let outputSize = CGSize(width: CGFloat(evenWidth), height: CGFloat(evenHeight))
@@ -428,11 +510,21 @@ class ScreenRecorder: NSObject, ObservableObject {
         }
         
         // SCStream Configuration - use recording resolution
-        let filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: excludedWindows)
+        let filter: SCContentFilter
+        let sourceSize: CGSize
+        
+        if selectedTargetType == .window, let windowTarget = selectedWindow {
+            filter = SCContentFilter(desktopIndependentWindow: windowTarget.window)
+            sourceSize = windowTarget.window.frame.size
+        } else if let display = selectedDisplay {
+            filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: excludedWindows)
+            sourceSize = CGSize(width: CGFloat(display.width), height: CGFloat(display.height))
+        } else {
+            return
+        }
         
         let config = SCStreamConfiguration()
-        let displaySize = CGSize(width: CGFloat(display.width), height: CGFloat(display.height))
-        let recordingSize = renderConfig.recordingResolution.size(for: displaySize)
+        let recordingSize = renderConfig.recordingResolution.size(for: sourceSize)
         config.width = Int(recordingSize.width)
         config.height = Int(recordingSize.height)
         config.showsCursor = true // Show native system cursor
@@ -664,7 +756,10 @@ extension ScreenRecorder: SCStreamOutput {
         
         let displayPointsWidth: CGFloat
         let displayPointsHeight: CGFloat
-        if let display = selectedDisplay {
+        if selectedTargetType == .window, let windowTarget = selectedWindow {
+            displayPointsWidth = windowTarget.window.frame.width
+            displayPointsHeight = windowTarget.window.frame.height
+        } else if let display = selectedDisplay {
             let bounds = CGDisplayBounds(display.displayID)
             if bounds.width > 0 && bounds.height > 0 {
                 displayPointsWidth = bounds.width
@@ -680,12 +775,7 @@ extension ScreenRecorder: SCStreamOutput {
         let displayRect = CGRect(x: 0, y: 0, width: displayPointsWidth, height: displayPointsHeight)
         
         let rawCursorPos = cursorManager.currentPosition
-        let translatedCursorPos: CGPoint
-        if let display = selectedDisplay {
-            translatedCursorPos = translateCursorPosition(rawCursorPos, for: display, frameWidth: displayWidth, frameHeight: displayHeight)
-        } else {
-            translatedCursorPos = rawCursorPos
-        }
+        let translatedCursorPos = translateCursorPosition(rawCursorPos, frameWidth: displayWidth, frameHeight: displayHeight)
         var shouldAllowZoom = true
         storage.sessionLock.lock()
         if storage.sessionStarted {
@@ -699,8 +789,8 @@ extension ScreenRecorder: SCStreamOutput {
         let focusTrigger = cursorManager.focusZoomTrigger
         
         let translatedTrigger: CursorManager.FocusZoomTrigger?
-        if shouldAllowZoom, let trigger = focusTrigger, let display = selectedDisplay {
-            let translatedPos = translateCursorPosition(trigger.position, for: display, frameWidth: displayWidth, frameHeight: displayHeight)
+        if shouldAllowZoom, let trigger = focusTrigger {
+            let translatedPos = translateCursorPosition(trigger.position, frameWidth: displayWidth, frameHeight: displayHeight)
             translatedTrigger = CursorManager.FocusZoomTrigger(position: translatedPos, timestamp: trigger.timestamp, type: trigger.type)
         } else {
             translatedTrigger = nil
@@ -719,8 +809,16 @@ extension ScreenRecorder: SCStreamOutput {
         storage.cameraFrameLock.unlock()
         
         var cameraCenterPct: CGPoint? = nil
-        if let panelFrame = panelFrame, let display = selectedDisplay {
-            let bounds = CGDisplayBounds(display.displayID)
+        if let panelFrame = panelFrame {
+            let bounds: CGRect
+            if selectedTargetType == .window, let windowTarget = selectedWindow {
+                bounds = windowTarget.window.frame
+            } else if let display = selectedDisplay {
+                bounds = CGDisplayBounds(display.displayID)
+            } else {
+                bounds = .zero
+            }
+            
             if bounds.width > 0 && bounds.height > 0, let mainScreen = NSScreen.screens.first {
                 let centerX = panelFrame.midX
                 let centerY = mainScreen.frame.height - panelFrame.midY
@@ -750,16 +848,26 @@ extension ScreenRecorder: SCStreamOutput {
         }
     }
     
-    private func translateCursorPosition(_ globalPoint: CGPoint, for display: SCDisplay, frameWidth: Int, frameHeight: Int) -> CGPoint {
-        let bounds = CGDisplayBounds(display.displayID)
-        guard bounds.width > 0 && bounds.height > 0 else { return .zero }
-        
-        let relativeX = globalPoint.x - bounds.origin.x
-        let relativeY = globalPoint.y - bounds.origin.y
-        
-        let pixelX = relativeX * (CGFloat(frameWidth) / bounds.width)
-        let pixelY = (bounds.height - relativeY) * (CGFloat(frameHeight) / bounds.height)
-        
-        return CGPoint(x: pixelX, y: pixelY)
+    private func translateCursorPosition(_ globalPoint: CGPoint, frameWidth: Int, frameHeight: Int) -> CGPoint {
+        if selectedTargetType == .window, let windowTarget = selectedWindow {
+            let bounds = windowTarget.window.frame
+            let relativeX = globalPoint.x - bounds.origin.x
+            let relativeY = globalPoint.y - bounds.origin.y
+            
+            let pixelX = relativeX * (CGFloat(frameWidth) / bounds.width)
+            let pixelY = (bounds.height - relativeY) * (CGFloat(frameHeight) / bounds.height)
+            return CGPoint(x: pixelX, y: pixelY)
+        } else if let display = selectedDisplay {
+            let bounds = CGDisplayBounds(display.displayID)
+            guard bounds.width > 0 && bounds.height > 0 else { return .zero }
+            
+            let relativeX = globalPoint.x - bounds.origin.x
+            let relativeY = globalPoint.y - bounds.origin.y
+            
+            let pixelX = relativeX * (CGFloat(frameWidth) / bounds.width)
+            let pixelY = (bounds.height - relativeY) * (CGFloat(frameHeight) / bounds.height)
+            return CGPoint(x: pixelX, y: pixelY)
+        }
+        return .zero
     }
 }
